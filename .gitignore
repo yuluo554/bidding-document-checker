@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# 环境与密钥
+.env
+*.key
+*_private/
+
+# 运行产物
+output/
+reports/
+*.log
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
