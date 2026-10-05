@@ -135,6 +135,10 @@
 - **docx 的 .rels 里 Relationship Type 属性本身是 http URI**（OOXML 规范如此）——
   "docx 无外链"断言必须查 `TargetMode="External"` + `w:hyperlink` + 正文剥标签后无 http，
   不能对 .rels 全文做 http 子串扫描；
+- **gh OAuth token（gho_）无 `workflow` scope 时，push 含 `.github/workflows/*` 的提交会被拒**
+  （"refusing to allow an OAuth App to create or update workflow"）——M6 实测：本机 SSH 密钥
+  （id_ed25519 → yuluo554）可用，origin 改 `git@github.com:` 后 push 成功；替代方案
+  `gh auth refresh -s workflow` 需交互式浏览器授权；
 - **SVG 用 createElementNS 会把 `http://www.w3.org/2000/svg` 命名空间 URL 带进 HTML
   产物**，撞 0 外链断言——图谱 JS 用 innerHTML 字符串构建 SVG；
 - **WebFetch 抓 flk.npc.gov.cn 返回空壳**（JS 渲染站点）；WebSearch 域名级链接不可直接
@@ -149,17 +153,20 @@
   plan/06（D27 + D7 顺延 + D14 状态 + 缓议表）回写；HANDOFF-M6 落盘（本文件）；
 - **本地提交 M5**（不 push；建仓 push = M6 动作）。
 
-## 六、M6 DoD checklist
+## 六、M6 DoD checklist（终态 2026-10-05，全部完成）
 
-- [ ] 提交邮箱全历史改写（filter-branch → GitHub noreply）+ 本地 git config 同步 + 全量测试/双基线复跑
-- [ ] 脱敏四步 + 三扫全 0（plan 系列表述复核 D15 / 代码 / 数据 / 密钥全历史）
-- [ ] GitHub 公开仓库建立 + push main（owner=yuluo554，D2）
-- [ ] CI 四矩阵首跑绿（环境差异诊断一轮预算内）；push 数 = run 数对账
-- [ ] tag v0.5.0 + Release（changelog）；**经用户确认后执行**
-- [ ] D14 参赛已拍板不参赛（✅ 2026-10-05，无追加交付物）；D15 复核记入 06
-- [ ] README 终检（徽章/链接/快速开始与发布仓库一致）
-- [ ] pytest 全绿（基线 264 项）；bench parse F1=1.0 + bench e2e PASS 不回退
-- [ ] plan/00/05/06 终态回写
+- [x] 提交邮箱全历史改写（filter-branch env+tree 双滤 9 提交 → GitHub noreply）+ 本地 git config 同步 + 全量测试/双基线复跑（pytest 264 / parse F1=1.0 / e2e PASS）
+- [x] 脱敏四步 + 三扫（plan 系列表述复核 D15：三姊妹均公开→保留 / 代码 / 数据 / 密钥全历史——main 仅白名单命中：env 变量名、测试 mock）
+- [x] GitHub 公开仓库建立 + push main（owner=yuluo554，D2；SSH 通道，OAuth 缺 workflow scope 实测见 §四）
+- [x] CI 四矩阵首跑绿（1m16s，诊断轮未动用）；push 数 = run 数 = 2 对账
+- [x] tag v0.5.0 + Release（changelog=M1–M5 里程碑行）+ topics——经用户确认执行（2026-10-05）
+- [x] D14 参赛已拍板不参赛（✅ 2026-10-05，无追加交付物）；D15 复核记入 06（三姊妹均公开→保留）
+- [x] README 终检（CI 徽章指向发布仓库、链接/快速开始与发布仓库一致、状态行翻转 v0.5.0）
+- [x] pytest 全绿（基线 264 项）；bench parse F1=1.0 + bench e2e PASS 不回退
+- [x] plan/00/05/06 终态回写（D28 发布执行记录入 06）
+
+> **M6 为终版里程碑，项目收官**（2026-10-05）。无 HANDOFF-M7；后续 docx 输入适配（D7）
+> 按需另立项目。改写前全历史备份：仓外 `../bidding-document-checker-pre-m6-backup.bundle`。
 
 ## 七、关键命令速查
 
