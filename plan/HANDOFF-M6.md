@@ -46,7 +46,8 @@
 ## 二、下一里程碑 M6（脱敏发布）待办
 
 1. **提交邮箱全历史改写（D13，发布门）**：`git filter-branch --env-filter` 把
-   282769740+yuluo554@users.noreply.github.com 全历史改写为 282769740+yuluo554@users.noreply.github.com；
+   个人 QQ 邮箱全历史改写为 282769740+yuluo554@users.noreply.github.com（旧邮箱原文
+   已从 plan 文档剥离，见 06 D13——历史 blob 用 tree-filter 一并洗除）；
    本地 `git config user.email` 同步改；改写后全量测试 + 双基线复跑；
 2. **脱敏四步 + 三扫全 0**：
    ① plan 文档姊妹项目/系列表述复核（D15——姊妹项目均已公开则互相提及无碍，未公开则
@@ -175,18 +176,21 @@ PYTHONDONTWRITEBYTECODE=1 py -X utf8 -m bidchecker serve --port 8000   # Web 面
 PYTHONDONTWRITEBYTECODE=1 py -X utf8 -m bidchecker datagen --seed 42   # 再生成 examples/（位级一致）
 # Web 面板测试（TestClient 走 httpx，装 llm extra 后 264 项全跑）：
 PYTHONDONTWRITEBYTECODE=1 NO_PROXY="*" no_proxy="*" py -X utf8 -m pip install -e ".[dev,report,web,llm]" --no-build-isolation
-# M6 邮箱改写（发布门，先备份再执行）：
-git filter-branch -f --env-filter '
-  if [ "$GIT_AUTHOR_EMAIL" = "282769740+yuluo554@users.noreply.github.com" ]; then
-      export GIT_AUTHOR_EMAIL="282769740+yuluo554@users.noreply.github.com"
-  fi
-  if [ "$GIT_COMMITTER_EMAIL" = "282769740+yuluo554@users.noreply.github.com" ]; then
-      export GIT_COMMITTER_EMAIL="282769740+yuluo554@users.noreply.github.com"
-  fi' -- --all
+# M6 邮箱改写（发布门，先备份 bundle 再执行；旧邮箱原文不落本文件——见 06 D13）：
+#   OLD_EMAIL = 06 D13 记录的旧个人邮箱（执行时以字面量代入）；NEW_EMAIL = 下方 noreply 地址
+git filter-branch -f \
+  --env-filter '
+    OLD_EMAIL="（执行时以 06 D13 记录的旧邮箱字面量代入）"
+    NEW_EMAIL="282769740+yuluo554@users.noreply.github.com"
+    if [ "$GIT_AUTHOR_EMAIL" = "$OLD_EMAIL" ]; then export GIT_AUTHOR_EMAIL="$NEW_EMAIL"; fi
+    if [ "$GIT_COMMITTER_EMAIL" = "$OLD_EMAIL" ]; then export GIT_COMMITTER_EMAIL="$NEW_EMAIL"; fi
+  ' \
+  --tree-filter 'grep -rIl "OLD_EMAIL_LOCAL_PART" . 2>/dev/null | xargs -r sed -i -e "s/OLD_EMAIL/NEW_EMAIL/g" -e "s/OLD_EMAIL_LOCAL_PART/[redacted]/g"' \
+  -- --all
 git config user.email "282769740+yuluo554@users.noreply.github.com"
-# 三扫（M6）：
-git log --all -p | grep -inE "qq\.com|[redacted]|sk-[a-z0-9]|api[_-]?key\s*[:=]"   # 密钥/个人信息（应零命中）
-grep -rinE "construction-drawing|power-operation|medical-record" plan/ src/ README.md data/  # 姊妹项目表述（按 D15 处置）
+# 三扫（M6；qq\.com 用转义写法避免模式自命中）：
+git log --all -p | grep -inE "qq\.com|sk-[a-z0-9]|api[_-]?key\s*[:=]"   # 密钥/个人信息（应零命中；env 三件套变量名为白名单）
+grep -rinE "construction-drawing|power-operation|medical-record" plan/ src/ README.md data/  # 姊妹项目表述（D15 已复核：三姊妹均公开→保留）
 # 重装（先升级构建链；系统 env 才需要）：
 NO_PROXY="*" no_proxy="*" py -m pip install -U setuptools wheel
 PYTHONDONTWRITEBYTECODE=1 NO_PROXY="*" no_proxy="*" py -X utf8 -m pip install -e ".[dev,report,web,llm]" --no-build-isolation

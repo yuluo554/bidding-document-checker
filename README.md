@@ -1,5 +1,7 @@
 # bidding-document-checker
 
+[![CI](https://github.com/yuluo554/bidding-document-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/yuluo554/bidding-document-checker/actions/workflows/ci.yml)
+
 招投标文件智能评审与合规校核系统（公共采购）——面向招标/投标文件的双侧自动解析、
 资格与实质性条款符合性校核、法规依据关联与评审报告生成。
 
