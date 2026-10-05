@@ -3,7 +3,7 @@
 招投标文件智能评审与合规校核系统（公共采购）——面向招标/投标文件的双侧自动解析、
 资格与实质性条款符合性校核、法规依据关联与评审报告生成。
 
-> 🚧 **状态：M2 解析层**——计划文档、合成数据生成器与双侧解析器就绪（解析基准 F1=1.0），功能按里程碑交付（见[路线图](#路线图)）。
+> 🚧 **状态：M3 知识与规则**——计划文档、合成数据生成器、双侧解析器（F1=1.0）、法规知识库与符合性引擎就绪（`bidchecker run` 出带依据的 findings），功能按里程碑交付（见[路线图](#路线图)）。
 
 ## 定位（重要）
 
@@ -33,6 +33,9 @@ bidchecker --version
 bidchecker datagen --seed 42        # → examples/ 下 3 个演示项目（货物×2、服务×1）
 # 解析基准（字段级 P/R/F1，多 seed 对账生成器真值，零 API）：
 bidchecker bench parse
+# 端到端评审（演示项目：findings 带法规/条款依据，干净对照零误报）：
+bidchecker run examples/demo-goods-1 --out output   # → output/findings.json + output/cards/
+bidchecker run examples/demo-goods-2 --out output   # 干净对照组：结论 0 条
 ```
 
 ## CLI
@@ -40,7 +43,7 @@ bidchecker bench parse
 | 命令 | 说明 | 状态 |
 |---|---|---|
 | `bidchecker --version` | 版本 | ✅ |
-| `bidchecker run <项目目录>` | 端到端评审流水线 | 🚧 M3 起 |
+| `bidchecker run <项目目录> [--out D]` | 端到端评审流水线：解析 → 确定性校核 → findings.json + 参数卡（退出码 0/1/2） | ✅ |
 | `bidchecker datagen [--seed N] [--out D]` | 合成数据生成器：3 个演示项目（招标 6 章/投标 7 章 Markdown + ground_truth.json，D1–D12 缺陷注入 + 干净对照） | ✅ |
 | `bidchecker bench parse [--seed N] [--threshold X]` | 解析基准：字段级 P/R/F1（默认 seeds 1/7/42/123/2026，门槛 F1 ≥ 0.95） | ✅ |
 | `bidchecker bench e2e` | 端到端校核基准（检出率/误报率/判定准确率） | 🚧 M4 |
@@ -68,7 +71,7 @@ flowchart LR
 | M0 | 计划文档 + 工程骨架 + CI | ✅ 2026-10-05 |
 | M1 | 数据先行：生成器 + 缺陷注入 + 真值 | ✅ 2026-10-05 |
 | M2 | 解析层：双侧参数卡 + 解析 F1 基准 | ✅ 2026-10-05 |
-| M3 | 知识与规则：三层知识库 + 符合性引擎 | ⬜ |
+| M3 | 知识与规则：三层知识库 + 符合性引擎 + run 端到端 | ✅ 2026-10-05 |
 | M4 | LLM 兜底 + 端到端基准达标 | ⬜ |
 | M5 | CLI 全家桶 + docx 报告 + 围标图谱 + Web | ⬜ |
 | M6 | 脱敏发布 GitHub + 收尾固化 | ⬜ |

@@ -2,9 +2,16 @@
 
 命令按里程碑分阶段交付（plan/05-数据计划与里程碑.md）：未交付命令打印指向计划
 文档的提示并返回退出码 2（与参数错误一致），不崩溃。
+
+退出码语义（M3 定稿，锁进 tests/test_cli.py）：
+- datagen / bench parse / --version / 无参帮助：0 成功（bench parse 门槛不过 = 1）；
+- run：0 = 全部文档解析并校核完成；1 = 完成但存在解析失败文档（降级）；
+  2 = 输入不可用（目录/文件缺失）或未交付命令；
+- bench e2e / report / serve：未交付 = 2（指向 plan/05）。
 """
 import argparse
 import sys
+from pathlib import Path
 
 from bidchecker import __version__
 
@@ -18,8 +25,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"bidchecker {__version__}")
     sub = parser.add_subparsers(dest="command")
-    p_run = sub.add_parser("run", help="端到端评审流水线：解析 → 校核 → findings")
+    p_run = sub.add_parser("run", help="端到端评审流水线：解析 → 校核 → findings（M3）")
     p_run.add_argument("project", help="项目输入目录（招标文件 + 投标文件包）")
+    p_run.add_argument("--out", default="output",
+                       help="产物输出目录（默认 ./output：findings.json + cards/）")
     p_datagen = sub.add_parser("datagen", help="合成招投标文件生成器（带真值/缺陷注入，M1）")
     p_datagen.add_argument("--seed", type=int, default=42, help="确定性随机种子（默认 42）")
     p_datagen.add_argument("--out", default="examples", help="输出根目录（默认 examples）")
@@ -46,8 +55,16 @@ def main(argv=None) -> int:
         run_datagen(seed=args.seed, out_root=args.out)
         return 0
     if args.command == "run":
-        print(f"尚未实现：端到端引擎计划于 M3 交付（见 {_PLAN_URL}）", file=sys.stderr)
-        return 2
+        from bidchecker import pipeline as pipeline_mod
+
+        try:
+            result = pipeline_mod.run_pipeline(args.project, out_dir=args.out)
+        except FileNotFoundError as exc:
+            print(f"输入错误：{exc}", file=sys.stderr)
+            return 2
+        print(result.format_summary())
+        print(f"产物：{Path(args.out) / 'findings.json'}（卡片 {Path(args.out) / 'cards'}）")
+        return 0 if not result.failed else 1
     if args.command == "bench":
         if args.bench_command == "parse":
             from bidchecker.bench import F1_THRESHOLD, run_bench_parse

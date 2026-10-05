@@ -1,4 +1,4 @@
-"""CLI：--version / 无参帮助 / 未交付命令退出码 2 / datagen 交付（M1）。"""
+"""CLI：--version / 无参帮助 / 未交付命令退出码 2 / datagen（M1）/ run 退出码 0·1·2（M3 定稿）。"""
 import json
 
 import pytest
@@ -21,9 +21,40 @@ def test_no_args_prints_help(capsys):
     assert "run" in out
 
 
-def test_run_not_implemented_exit_2(capsys):
-    assert main(["run", "examples/demo-project"]) == 2
-    assert "M3" in capsys.readouterr().err
+def test_run_missing_project_exit_2(capsys):
+    assert main(["run", "no-such-project-dir"]) == 2
+    assert "输入错误" in capsys.readouterr().err
+
+
+def test_run_clean_project_exit_0(tmp_path, capsys):
+    from pathlib import Path
+
+    project = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-2"
+    out = tmp_path / "out"
+    assert main(["run", str(project), "--out", str(out)]) == 0
+    assert "结论 0 条" in capsys.readouterr().out
+    payload = json.loads((out / "findings.json").read_text(encoding="utf-8"))
+    assert payload["findings"] == []
+    assert (out / "cards" / "tender.card.json").is_file()
+
+
+def test_run_degraded_exit_1(tmp_path, monkeypatch, capsys):
+    """存在解析失败文档：流水线完成但降级，退出码 1。"""
+    from pathlib import Path
+
+    import bidchecker.pipeline as pl
+
+    project = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-1"
+    real_parse = pl.parse_bid
+
+    def flaky(text):
+        if "启明" in text:
+            raise ValueError("模拟解析失败")
+        return real_parse(text)
+
+    monkeypatch.setattr(pl, "parse_bid", flaky)
+    assert main(["run", str(project), "--out", str(tmp_path)]) == 1
+    assert "解析失败 1 份" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("cmd", [["bench"], ["report"], ["serve"]])

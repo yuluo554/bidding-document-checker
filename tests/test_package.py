@@ -35,16 +35,19 @@ def test_submodules_importable():
         importlib.import_module(name)
 
 
-def test_stub_paths_raise_not_implemented():
-    """骨架期 stub 行为锁定：M3/M4 未交付路径调用即 NotImplementedError。"""
+def test_m3_engine_and_pipeline_delivered():
+    """M3 转正：引擎空卡零结论（不抛 NotImplementedError）、流水线可在干净项目出空 findings。"""
+    from pathlib import Path
+
     from bidchecker.pipeline import run_pipeline
-    from bidchecker.rules.engine import run_checks
+    from bidchecker.rules.engine import run_checks, run_tender_checks
     from bidchecker.schema import BidCard, TenderCard
 
-    with pytest.raises(NotImplementedError):
-        run_checks(TenderCard(), BidCard())
-    with pytest.raises(NotImplementedError):
-        run_pipeline("examples/demo")
+    assert run_checks(TenderCard(), BidCard()) == []
+    assert run_tender_checks(TenderCard()) == []
+    result = run_pipeline(Path(__file__).resolve().parent.parent / "examples" / "demo-goods-2")
+    assert result.summary()["total"] == 0
+    assert not result.failed
 
 
 def test_parsers_delivered_m2():

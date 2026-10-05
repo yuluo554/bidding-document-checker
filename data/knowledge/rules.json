@@ -1,0 +1,183 @@
+[
+  {
+    "id": "CHK-Q-01",
+    "name": "资格证明材料存在性核对",
+    "rule_type": "qualification_match",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.qualifications"],
+    "advice": "补充提供对应资格/财务类证明材料，或核对证明材料行是否完整（资格类、财务类条款在投标文件第二章逐条对应）",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-Q-02",
+    "name": "资格证书有效期核对",
+    "rule_type": "qualification_match",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.qualifications"],
+    "advice": "核对证书有效期与投标截止时间；过期的要求换发新证或在有效期内提供延续证明",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-Q-03",
+    "name": "资质等级核对",
+    "rule_type": "qualification_match",
+    "severity": "mid",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.qualifications"],
+    "advice": "核对持有等级是否达到招标文件要求的等级（信用等级按 AAA>AA>A>BBB>BB>B>CCC>CC>C 有序比较）",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-Q-04",
+    "name": "类似业绩要求核对",
+    "rule_type": "qualification_match",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.qualifications"],
+    "advice": "按招标文件要求的业绩数量与年份下限核对投标文件类似业绩清单",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-Q-05",
+    "name": "人员证书要求核对",
+    "rule_type": "qualification_match",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.qualifications"],
+    "advice": "按资格条款中的证书关键词核对拟投入人员证书清单（如 PMP）",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-SR-01",
+    "name": "星号条款响应存在性核对",
+    "rule_type": "star_response",
+    "severity": "high",
+    "basis": ["TenderCard.star_clauses", "《招标投标法实施条例》第五十一条"],
+    "advice": "★条款未响应即触及否决条款，须在技术方案中逐条补充响应；▲条款未响应为重要条款缺失",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-SR-02",
+    "name": "星号条款响应值核对",
+    "rule_type": "star_response",
+    "severity": "mid",
+    "basis": ["TenderCard.star_clauses", "TenderCard.star_responses"],
+    "advice": "响应值偏离要求值而偏差表仍声明无偏离的，要求投标人澄清或按偏差处理",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-SR-03",
+    "name": "星号条款负偏离声明核对",
+    "rule_type": "star_response",
+    "severity": "low",
+    "basis": ["TenderCard.star_clauses", "TenderCard.star_responses"],
+    "advice": "已声明的负偏离是否可接受由评审判断，提请人工确认",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-AR-01",
+    "name": "大写金额与小写金额一致性核对",
+    "rule_type": "arithmetic_consistency",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第五十九条"],
+    "advice": "大写金额与小写金额不一致的，按 87号令第五十九条 以大写金额为准修正（招标文件另有规定除外），并要求投标人确认",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-AR-02",
+    "name": "分项合计与投标总价一致性核对",
+    "rule_type": "arithmetic_consistency",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第五十九条"],
+    "advice": "分项合计与投标总价不一致的，按 87号令第五十九条 修正顺序处理，并要求投标人确认",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-AR-03",
+    "name": "分项明细与分项合计一致性核对",
+    "rule_type": "arithmetic_consistency",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第五十九条"],
+    "advice": "分项明细加总与分项合计不一致的，要求投标人澄清修正",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-BD-01",
+    "name": "投标保证金金额核对",
+    "rule_type": "bond_check",
+    "severity": "mid",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.bond"],
+    "advice": "缴纳金额低于招标文件要求的，未按要求提交投标保证金，触及否决条款",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-BD-02",
+    "name": "投标保证金形式核对",
+    "rule_type": "bond_check",
+    "severity": "mid",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.bond"],
+    "advice": "缴纳形式不在招标文件允许形式内的，未按要求提交投标保证金，触及否决条款",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-DT-01",
+    "name": "投标有效期核对",
+    "rule_type": "date_logic",
+    "severity": "mid",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第二十三条", "TenderCard.key_dates"],
+    "advice": "承诺投标有效期不得少于招标文件载明的投标有效期，不足的触及否决条款",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-DT-02",
+    "name": "开标时间顺序核对（招标侧）",
+    "rule_type": "date_logic",
+    "severity": "mid",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第三十九条", "TenderCard.key_dates"],
+    "advice": "开标时间应在投标截止同一时间；早于递交截止属招标文件内在矛盾，提请招标人澄清更正",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-RJ-01",
+    "name": "最高限价否决扫描",
+    "rule_type": "rejection_scan",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "《招标投标法实施条例》第五十一条", "TenderCard.rejection_clauses"],
+    "advice": "投标总价超过最高限价（从否决条款 R1 内嵌金额抽取）的，投标无效",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-RJ-02",
+    "name": "保证金否决条款联动",
+    "rule_type": "rejection_scan",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十三条", "TenderCard.rejection_clauses"],
+    "advice": "保证金金额/形式违规命中招标文件否决条款（未按要求提交投标保证金的，投标无效）",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-RJ-03",
+    "name": "有效期否决条款联动",
+    "rule_type": "rejection_scan",
+    "severity": "high",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第二十三条", "TenderCard.rejection_clauses"],
+    "advice": "投标有效期不足命中招标文件否决条款",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-RJ-04",
+    "name": "星号条款否决条款联动",
+    "rule_type": "rejection_scan",
+    "severity": "high",
+    "basis": ["《招标投标法实施条例》第五十一条", "TenderCard.rejection_clauses"],
+    "advice": "★条款不满足或未响应命中招标文件否决条款（★号条款不满足或者未响应的，其投标无效）",
+    "only_if": {}
+  },
+  {
+    "id": "CHK-PC-01",
+    "name": "低于成本报价嫌疑提示",
+    "rule_type": "price_check",
+    "severity": "low",
+    "basis": ["《政府采购货物和服务招标投标管理办法》第六十条", "TenderCard.rejection_clauses"],
+    "advice": "报价低于最高限价规定比例（默认 80%）时提示低于成本嫌疑，提请人工复核（87号令第六十条：要求书面说明并提供证明，不能证明合理性按无效投标处理）",
+    "only_if": {},
+    "params": {"ratio": 0.8}
+  }
+]
