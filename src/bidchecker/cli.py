@@ -23,7 +23,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_datagen = sub.add_parser("datagen", help="合成招投标文件生成器（带真值/缺陷注入，M1）")
     p_datagen.add_argument("--seed", type=int, default=42, help="确定性随机种子（默认 42）")
     p_datagen.add_argument("--out", default="examples", help="输出根目录（默认 examples）")
-    sub.add_parser("bench", help="内置基准：解析 F1 / 端到端校核（零 API 依赖）")
+    p_bench = sub.add_parser("bench", help="内置基准：解析 F1（M2）/ 端到端校核（M4）")
+    bench_sub = p_bench.add_subparsers(dest="bench_command")
+    p_bp = bench_sub.add_parser("parse", help="解析层基准：字段级 P/R/F1（对账生成器真值）")
+    p_bp.add_argument("--seed", type=int, action="append", dest="seeds",
+                      help="回归种子，可重复传入（默认 1,7,42,123,2026）")
+    p_bp.add_argument("--threshold", type=float, default=None,
+                      help="总体 F1 门槛（默认 0.95，不放宽）")
+    p_bp.add_argument("--verbose", action="store_true", help="列出全部字段级失配明细")
+    bench_sub.add_parser("e2e", help="端到端基准：检出率/误报率/判定准确率（M4 交付）")
     sub.add_parser("report", help="生成 docx 评审报告")
     sub.add_parser("serve", help="启动 Web 面板")
     return parser
@@ -38,9 +46,25 @@ def main(argv=None) -> int:
         run_datagen(seed=args.seed, out_root=args.out)
         return 0
     if args.command == "run":
-        print(f"尚未实现：解析层计划于 M2 交付（见 {_PLAN_URL}）", file=sys.stderr)
+        print(f"尚未实现：端到端引擎计划于 M3 交付（见 {_PLAN_URL}）", file=sys.stderr)
         return 2
-    if args.command in ("bench", "report", "serve"):
+    if args.command == "bench":
+        if args.bench_command == "parse":
+            from bidchecker.bench import F1_THRESHOLD, run_bench_parse
+
+            seeds = tuple(args.seeds) if args.seeds else None
+            threshold = args.threshold if args.threshold is not None else F1_THRESHOLD
+            _report, text = run_bench_parse(seeds=seeds, threshold=threshold,
+                                            verbose=args.verbose)
+            print(text)
+            return 0 if _report.passed else 1
+        if args.bench_command == "e2e":
+            print(f"尚未实现：bench e2e 计划于 M4 交付（见 {_PLAN_URL}）", file=sys.stderr)
+            return 2
+        print(f"用法：bidchecker bench parse|e2e（e2e 尚未实现，见 {_PLAN_URL}）",
+              file=sys.stderr)
+        return 2
+    if args.command in ("report", "serve"):
         print(f"尚未实现：该命令按里程碑交付（见 {_PLAN_URL}）", file=sys.stderr)
         return 2
     parser.print_help()

@@ -36,21 +36,39 @@ def test_submodules_importable():
 
 
 def test_stub_paths_raise_not_implemented():
-    """骨架期 stub 行为锁定：调用即 NotImplementedError（M2/M3/M4 替换为实现）。"""
-    from bidchecker.parsers.bid import parse_bid
-    from bidchecker.parsers.tender import parse_tender
+    """骨架期 stub 行为锁定：M3/M4 未交付路径调用即 NotImplementedError。"""
     from bidchecker.pipeline import run_pipeline
     from bidchecker.rules.engine import run_checks
     from bidchecker.schema import BidCard, TenderCard
 
     with pytest.raises(NotImplementedError):
-        parse_tender("招标文件全文")
-    with pytest.raises(NotImplementedError):
-        parse_bid("投标文件全文")
-    with pytest.raises(NotImplementedError):
         run_checks(TenderCard(), BidCard())
     with pytest.raises(NotImplementedError):
         run_pipeline("examples/demo")
+
+
+def test_parsers_delivered_m2():
+    """M2 转正：双侧解析器可运行，examples 固定体例解析出完整参数卡。"""
+    from pathlib import Path
+
+    from bidchecker.parsers.bid import parse_bid
+    from bidchecker.parsers.tender import parse_tender
+
+    root = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-1"
+    tender = parse_tender((root / "tender.md").read_text(encoding="utf-8"))
+    assert tender.project.number == "ZB-2026-6452"
+    assert len(tender.qualifications) == 6
+    assert len(tender.star_clauses) == 3
+    assert len(tender.rejection_clauses) == 4
+    # D10 注入痕迹原样抽出（解析器不做一致性判定）：开标早于递交截止
+    assert tender.key_dates.open_time < tender.key_dates.submit_deadline
+
+    bid_files = sorted((root / "bids").glob("*.md"))
+    assert bid_files, "examples demo-goods-1 缺投标文件"
+    bid = parse_bid(bid_files[0].read_text(encoding="utf-8"))
+    assert bid.bidder
+    assert bid.prices is not None and bid.prices.total_number
+    assert bid.prices.total_words and bid.prices.items
 
 
 def test_llm_disabled_without_env():

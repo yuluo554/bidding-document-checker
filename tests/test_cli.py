@@ -23,7 +23,7 @@ def test_no_args_prints_help(capsys):
 
 def test_run_not_implemented_exit_2(capsys):
     assert main(["run", "examples/demo-project"]) == 2
-    assert "M2" in capsys.readouterr().err
+    assert "M3" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("cmd", [["bench"], ["report"], ["serve"]])
