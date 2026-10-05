@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bidchecker"
+version = "0.1.0"
+description = "招投标文件智能评审与合规校核系统：双侧解析、资格与实质性条款符合性校核、法规依据关联（公共采购）"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "bidding-document-checker contributors" }]
+keywords = ["tender", "bidding", "procurement", "compliance", "conformance-checking"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Legal Industry",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business :: Legal",
+]
+dependencies = []
+
+[project.optional-dependencies]
+web = ["fastapi>=0.100", "uvicorn>=0.22", "python-multipart>=0.0.5"]
+report = ["python-docx>=0.8.11"]
+llm = ["httpx>=0.24"]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/yuluo554/bidding-document-checker"
+Issues = "https://github.com/yuluo554/bidding-document-checker/issues"
+
+[project.scripts]
+bidchecker = "bidchecker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
