@@ -1,5 +1,5 @@
-"""CLI：--version / 无参帮助 / 未交付命令退出码 2 / datagen（M1）/ run 退出码 0·1·2（M3）
-/ bench e2e 转正退出码 0·1（M4）。"""
+"""CLI：--version / 无参帮助 / datagen（M1）/ run 退出码 0·1·2 与 --graph（M3/M5）
+/ bench e2e 转正退出码 0·1（M4）/ report·serve 转正退出码（M5）。"""
 import json
 
 import pytest
@@ -58,10 +58,67 @@ def test_run_degraded_exit_1(tmp_path, monkeypatch, capsys):
     assert "解析失败 1 份" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("cmd", [["report"], ["serve"]])
-def test_future_commands_exit_2(cmd, capsys):
-    assert main(cmd) == 2
-    assert "尚未实现" in capsys.readouterr().err
+def test_run_graph_flag_generates_html(tmp_path, capsys):
+    """run --graph（M5）：out 目录落盘围标图谱 HTML，摘要注明。"""
+    from pathlib import Path
+
+    project = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-1"
+    out = tmp_path / "out"
+    assert main(["run", str(project), "--out", str(out), "--graph"]) == 0
+    html = out / "collusion_graph.html"
+    assert html.is_file()
+    assert "图谱：" in capsys.readouterr().out
+    content = html.read_text(encoding="utf-8")
+    assert "graph-data" in content
+    assert "http://" not in content and "https://" not in content
+
+
+def test_report_missing_input_exit_2(capsys, tmp_path):
+    assert main(["report", str(tmp_path / "no-such.json")]) == 2
+    assert "输入错误" in capsys.readouterr().err
+
+
+def test_report_success_exit_0(tmp_path, capsys):
+    """report 转正（M5）：run 产物 → docx 报告，退出码 0。"""
+    from pathlib import Path
+
+    pytest.importorskip("docx")
+    from bidchecker.pipeline import run_pipeline
+
+    project = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-1"
+    out = tmp_path / "out"
+    run_pipeline(str(project), out_dir=str(out))
+    docx_path = tmp_path / "评审报告.docx"
+    assert main(["report", str(out / "findings.json"),
+                 "--out", str(docx_path), "--all"]) == 0
+    out_text = capsys.readouterr().out
+    assert "报告已生成" in out_text and "结论 8 条" in out_text
+    assert docx_path.is_file()
+
+
+def test_report_degraded_input_still_exit_0(tmp_path, capsys):
+    """卡片缺失 → 报告照常生成（降级注明），退出码仍 0。"""
+    from pathlib import Path
+
+    pytest.importorskip("docx")
+    from bidchecker.pipeline import run_pipeline
+
+    project = Path(__file__).resolve().parent.parent / "examples" / "demo-goods-1"
+    out = tmp_path / "out"
+    run_pipeline(str(project), out_dir=str(out))
+    lone = tmp_path / "lone"
+    lone.mkdir()
+    (lone / "findings.json").write_bytes((out / "findings.json").read_bytes())
+    assert main(["report", str(lone / "findings.json")]) == 0
+    assert "降级" in capsys.readouterr().out
+    assert (lone / "report.docx").is_file()
+
+
+def test_serve_help_exits_0():
+    """serve 转正（M5）：参数解析可用（实际启动由 test_webapp TestClient 覆盖）。"""
+    with pytest.raises(SystemExit) as exc:
+        main(["serve", "--help"])
+    assert exc.value.code == 0
 
 
 def test_bare_bench_shows_usage_exit_2(capsys):

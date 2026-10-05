@@ -31,7 +31,8 @@ from bidchecker.schema import BidCard, Finding, TenderCard
 STAGES = ("load", "parse_tender", "parse_bids", "checks", "collusion", "aggregate", "report")
 
 TENDER_FILE = "tender.md"
-_SKIP_DETAIL = {"report": "M5 交付"}
+_GRAPH_FILE = "collusion_graph.html"
+_SKIP_DETAIL = {"report": "docx 报告用 bidchecker report 命令生成"}
 
 
 @dataclass
@@ -122,11 +123,14 @@ def _finding_dict(f: Finding, rule_type_by_id: Dict[str, str], target: str) -> D
 
 
 def run_pipeline(project_dir, out_dir: Optional[str] = None,
-                 *, llm_fallback: Optional[bool] = None) -> PipelineResult:
+                 *, llm_fallback: Optional[bool] = None,
+                 graph: bool = False) -> PipelineResult:
     """项目目录 → findings + 卡片产物（out_dir 给定时落盘 findings.json 与 cards/）。
 
     llm_fallback：None=自动（env 配置齐备即启用，默认关闭）；False=强制禁用
     （bench 基准固定走纯规则通路，保证零 API 依赖可重复）。
+    graph：True 时在 out_dir 落盘围标图谱 HTML（collusion_graph.html，M5；
+    投标 ≥2 份才生成——两两特征需要对照）。
     """
     root = Path(project_dir)
     result = PipelineResult(project_dir=str(root), tender_card=None)
@@ -220,12 +224,34 @@ def run_pipeline(project_dir, out_dir: Optional[str] = None,
                   if result.collusion else "按对核查无异常一致文本特征")
         result.stages.append(StageReport("collusion", True, time.perf_counter() - t0, detail))
 
-    # ---- aggregate / report（M5）
+    # ---- aggregate / report（M5：docx 报告为独立命令；可选围标图谱 HTML）
     t0 = time.perf_counter()
     result.stages.append(StageReport("aggregate", True, time.perf_counter() - t0,
                                      f"结论 {len(result.finding_dicts())} 条"))
-    result.stages.append(StageReport("report", True, 0.0,
-                                     "跳过（" + _SKIP_DETAIL["report"] + "）"))
+    t0 = time.perf_counter()
+    graph_detail = _SKIP_DETAIL["report"]
+    if graph and out_dir is not None and len(parsed_texts) >= 2:
+        from bidchecker.collusion.graph import write_graph_html
+
+        bidder_stats: Dict[str, Dict[str, int]] = {}
+        for b in result.bids:
+            if b.card is None or not b.findings:
+                continue
+            n_nc = sum(1 for f in b.findings if f.status == "不符合")
+            n_man = sum(1 for f in b.findings if f.status == "待人工确认")
+            if n_nc or n_man:
+                bidder_stats[b.file] = {"不符合": n_nc, "待人工确认": n_man}
+        title = "围标文本特征图谱"
+        if result.tender_card is not None and result.tender_card.project.name:
+            title = f"围标文本特征图谱 · {result.tender_card.project.name[:24]}"
+        gpath = write_graph_html(parsed_texts, Path(out_dir) / _GRAPH_FILE,
+                                 exclude_text=tender_text,
+                                 bidder_stats=bidder_stats, title=title)
+        graph_detail = f"围标图谱已生成：{gpath.name}"
+    elif graph:
+        graph_detail = "围标图谱未生成（需 out_dir 且投标 ≥ 2 份）"
+    result.stages.append(StageReport("report", True, time.perf_counter() - t0,
+                                     graph_detail))
 
     if out_dir is not None:
         _write_outputs(result, Path(out_dir))

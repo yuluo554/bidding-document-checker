@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bidchecker"
-version = "0.4.0"
+version = "0.5.0"
 description = "招投标文件智能评审与合规校核系统：双侧解析、资格与实质性条款符合性校核、法规依据关联（公共采购）"
 readme = "README.md"
 requires-python = ">=3.8"

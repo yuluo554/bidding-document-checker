@@ -32,6 +32,13 @@ def test_web_extra_declares_multipart():
     assert "python-multipart" in _extra_line(_extras_block(), "web")
 
 
+def test_web_extra_declares_fastapi_uvicorn():
+    """web extra 三件套齐备：缺 fastapi/uvicorn → serve 无法启动（M5 转正后锁定）。"""
+    web = _extra_line(_extras_block(), "web")
+    assert "fastapi" in web
+    assert "uvicorn" in web
+
+
 def test_llm_extra_declares_http_client():
     assert "httpx" in _extra_line(_extras_block(), "llm")
 
