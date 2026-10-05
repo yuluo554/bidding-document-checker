@@ -1,0 +1,15 @@
+{
+  "schema_version": "1",
+  "project_id": "demo-goods-2",
+  "category": "goods",
+  "clean": true,
+  "seed": 42,
+  "tender_file": "tender.md",
+  "bid_files": [
+    "bids/安捷计算机系统有限公司.md",
+    "bids/汇智软件服务有限公司.md",
+    "bids/启明智能化工程有限公司.md"
+  ],
+  "expect_findings": [],
+  "also_expect": []
+}

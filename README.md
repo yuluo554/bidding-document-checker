@@ -3,7 +3,7 @@
 招投标文件智能评审与合规校核系统（公共采购）——面向招标/投标文件的双侧自动解析、
 资格与实质性条款符合性校核、法规依据关联与评审报告生成。
 
-> 🚧 **状态：M0 骨架**——计划文档与工程骨架就绪，功能按里程碑交付（见[路线图](#路线图)）。
+> 🚧 **状态：M1 数据先行**——计划文档、工程骨架与合成数据生成器就绪，功能按里程碑交付（见[路线图](#路线图)）。
 
 ## 定位（重要）
 
@@ -29,6 +29,8 @@ pip install -U pip              # Python 3.8 自带老 pip 无法可编辑安装
 pip install -e ".[dev]"
 pytest -q
 bidchecker --version
+# 生成合成演示数据（固定 seed 位级可复现，含真值与缺陷注入）：
+bidchecker datagen --seed 42        # → examples/ 下 3 个演示项目（货物×2、服务×1）
 ```
 
 ## CLI
@@ -37,7 +39,7 @@ bidchecker --version
 |---|---|---|
 | `bidchecker --version` | 版本 | ✅ |
 | `bidchecker run <项目目录>` | 端到端评审流水线 | 🚧 M2 起 |
-| `bidchecker datagen` | 合成数据生成器（带真值/缺陷注入） | 🚧 M1 |
+| `bidchecker datagen [--seed N] [--out D]` | 合成数据生成器：3 个演示项目（招标 6 章/投标 7 章 Markdown + ground_truth.json，D1–D12 缺陷注入 + 干净对照） | ✅ |
 | `bidchecker bench` | 内置基准（解析 F1 / 端到端校核） | 🚧 M2/M4 |
 | `bidchecker report` | docx 评审报告 | 🚧 M5 |
 | `bidchecker serve` | Web 面板 | 🚧 M5 |
@@ -61,7 +63,7 @@ flowchart LR
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 | 计划文档 + 工程骨架 + CI | ✅ 2026-10-05 |
-| M1 | 数据先行：生成器 + 缺陷注入 + 真值 | ⬜ |
+| M1 | 数据先行：生成器 + 缺陷注入 + 真值 | ✅ 2026-10-05 |
 | M2 | 解析层：双侧参数卡 + 解析 F1 基准 | ⬜ |
 | M3 | 知识与规则：三层知识库 + 符合性引擎 | ⬜ |
 | M4 | LLM 兜底 + 端到端基准达标 | ⬜ |

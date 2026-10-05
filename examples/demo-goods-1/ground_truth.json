@@ -1,0 +1,82 @@
+{
+  "schema_version": "1",
+  "project_id": "demo-goods-1",
+  "category": "goods",
+  "clean": false,
+  "seed": 42,
+  "tender_file": "tender.md",
+  "bid_files": [
+    "bids/启明智能化工程有限公司.md",
+    "bids/安捷计算机系统有限公司.md",
+    "bids/蓝驰信息技术有限公司.md",
+    "bids/恒诺办公设备有限公司.md"
+  ],
+  "expect_findings": [
+    {
+      "defect_id": "D10",
+      "rule_type": "date_logic",
+      "status": "不符合",
+      "risk_level": "mid",
+      "target": "tender.md",
+      "note": "开标时间2026-10-19 09:00早于递交截止2026-10-19 09:30"
+    },
+    {
+      "defect_id": "D4",
+      "rule_type": "star_response",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/启明智能化工程有限公司.md",
+      "note": "★条款S1未响应"
+    },
+    {
+      "defect_id": "D2",
+      "rule_type": "qualification_match",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/安捷计算机系统有限公司.md",
+      "note": "ISO9001证书有效期2026-10-09早于投标截止2026-10-19"
+    },
+    {
+      "defect_id": "D1",
+      "rule_type": "qualification_match",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/蓝驰信息技术有限公司.md",
+      "note": "未提供类似项目业绩（招标文件Q5要求至少1个）"
+    },
+    {
+      "defect_id": "D6",
+      "rule_type": "arithmetic_consistency",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/蓝驰信息技术有限公司.md",
+      "note": "大写金额（叁佰贰拾捌万叁仟陆佰元整）与小写金额（3293600）不一致"
+    },
+    {
+      "defect_id": "D3",
+      "rule_type": "qualification_match",
+      "status": "不符合",
+      "risk_level": "mid",
+      "target": "bids/恒诺办公设备有限公司.md",
+      "note": "信用等级AA低于要求的AAA"
+    },
+    {
+      "defect_id": "D11",
+      "rule_type": "collusion",
+      "status": "待人工确认",
+      "risk_level": "mid",
+      "target": "bids/启明智能化工程有限公司.md|bids/安捷计算机系统有限公司.md",
+      "note": "两份投标共享同模板句与同一分钟编制时间戳"
+    }
+  ],
+  "also_expect": [
+    {
+      "defect_id": "D4",
+      "rule_type": "rejection_scan",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/启明智能化工程有限公司.md",
+      "note": "命中否决条款R4（★条款S1未响应）"
+    }
+  ]
+}

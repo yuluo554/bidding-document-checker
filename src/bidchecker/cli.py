@@ -20,7 +20,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
     p_run = sub.add_parser("run", help="端到端评审流水线：解析 → 校核 → findings")
     p_run.add_argument("project", help="项目输入目录（招标文件 + 投标文件包）")
-    sub.add_parser("datagen", help="合成招投标文件生成器（带真值/缺陷注入）")
+    p_datagen = sub.add_parser("datagen", help="合成招投标文件生成器（带真值/缺陷注入，M1）")
+    p_datagen.add_argument("--seed", type=int, default=42, help="确定性随机种子（默认 42）")
+    p_datagen.add_argument("--out", default="examples", help="输出根目录（默认 examples）")
     sub.add_parser("bench", help="内置基准：解析 F1 / 端到端校核（零 API 依赖）")
     sub.add_parser("report", help="生成 docx 评审报告")
     sub.add_parser("serve", help="启动 Web 面板")
@@ -30,10 +32,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "datagen":
+        from bidchecker.datagen import run_datagen
+
+        run_datagen(seed=args.seed, out_root=args.out)
+        return 0
     if args.command == "run":
         print(f"尚未实现：解析层计划于 M2 交付（见 {_PLAN_URL}）", file=sys.stderr)
         return 2
-    if args.command in ("datagen", "bench", "report", "serve"):
+    if args.command in ("bench", "report", "serve"):
         print(f"尚未实现：该命令按里程碑交付（见 {_PLAN_URL}）", file=sys.stderr)
         return 2
     parser.print_help()

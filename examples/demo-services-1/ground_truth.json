@@ -1,0 +1,73 @@
+{
+  "schema_version": "1",
+  "project_id": "demo-services-1",
+  "category": "services",
+  "clean": false,
+  "seed": 42,
+  "tender_file": "tender.md",
+  "bid_files": [
+    "bids/启明智能化工程有限公司.md",
+    "bids/瑞泰机电设备有限公司.md",
+    "bids/恒诺办公设备有限公司.md"
+  ],
+  "expect_findings": [
+    {
+      "defect_id": "D7",
+      "rule_type": "arithmetic_consistency",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/启明智能化工程有限公司.md",
+      "note": "分项合计（792000）与投标总价（802000）不一致"
+    },
+    {
+      "defect_id": "D8",
+      "rule_type": "bond_check",
+      "status": "不符合",
+      "risk_level": "mid",
+      "target": "bids/启明智能化工程有限公司.md",
+      "note": "保证金金额40000低于要求的50000"
+    },
+    {
+      "defect_id": "D5",
+      "rule_type": "star_response",
+      "status": "不符合",
+      "risk_level": "mid",
+      "target": "bids/瑞泰机电设备有限公司.md",
+      "note": "▲条款S2响应值10偏离要求值5，商务偏差表仍声明无偏离"
+    },
+    {
+      "defect_id": "D9",
+      "rule_type": "date_logic",
+      "status": "不符合",
+      "risk_level": "mid",
+      "target": "bids/瑞泰机电设备有限公司.md",
+      "note": "投标有效期60日历天，不足要求的90日历天"
+    },
+    {
+      "defect_id": "D12",
+      "rule_type": "rejection_scan",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/恒诺办公设备有限公司.md",
+      "note": "投标总价￥980,000.00超过最高限价￥880,000.00"
+    }
+  ],
+  "also_expect": [
+    {
+      "defect_id": "D8",
+      "rule_type": "rejection_scan",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/启明智能化工程有限公司.md",
+      "note": "命中否决条款R2（未按要求提交投标保证金）"
+    },
+    {
+      "defect_id": "D9",
+      "rule_type": "rejection_scan",
+      "status": "不符合",
+      "risk_level": "high",
+      "target": "bids/瑞泰机电设备有限公司.md",
+      "note": "命中否决条款R3（投标有效期不足）"
+    }
+  ]
+}
