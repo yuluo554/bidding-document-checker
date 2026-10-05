@@ -143,7 +143,8 @@ def test_only_if_gate_applies_to_every_rule_type():
     """引擎分派前逐条过 gates.rule_applies：only_if 不命中则该 check 不产出结论。"""
     rt_by_id = _rule_type_by_id()
     fixtures = _firing_fixtures()
-    expected_types = set(rt_by_id.values()) - {"price_check"}
+    # collusion（CHK-CL-01）由 M4 collusion 模块产出，不在引擎 RULE_TYPES 分派表内
+    expected_types = set(rt_by_id.values()) - {"price_check", "collusion"}
     assert expected_types <= set(fixtures), \
         f"缺少命中点的 rule_type: {expected_types - set(fixtures)}"
     fixtures["price_check"] = (42, DEMO_PROJECTS[1], 0)

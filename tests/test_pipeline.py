@@ -1,7 +1,8 @@
-"""端到端流水线（M3）：examples 三项目与 ground_truth 全集合对账、降级路径、落盘确定性。
+"""端到端流水线（M3/M4）：examples 三项目与 ground_truth 全集合对账、降级路径、落盘确定性。
 
-对账口径：expect_findings + also_expect 全集合（排除 rule_type=collusion——D11 归 M4）
-vs findings 非符合四元组 (rule_type, status, risk_level, target)；干净对照 demo-goods-2 零结论。
+对账口径（M4 升级）：expect_findings + also_expect **全集合（含 D11 围标对）**
+vs findings 非符合四元组 (rule_type, status, risk_level, target)；
+干净对照 demo-goods-2 零结论（含围标对零误报）。
 """
 import json
 from pathlib import Path
@@ -12,15 +13,12 @@ from bidchecker.pipeline import run_pipeline
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / "examples"
-M3_EXCLUDED = {"collusion"}
 
 
 def _truth_tuples(project_dir: Path):
     gt = json.loads((project_dir / "ground_truth.json").read_text(encoding="utf-8"))
     out = set()
     for row in gt["expect_findings"] + gt["also_expect"]:
-        if row["rule_type"] in M3_EXCLUDED:
-            continue
         out.add((row["rule_type"], row["status"], row["risk_level"], row["target"]))
     return out
 

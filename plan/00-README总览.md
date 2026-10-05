@@ -18,6 +18,7 @@
 | [HANDOFF-M2.md](HANDOFF-M2.md) | M1→M2 交接快照（进度/待办/既定口径/环境坑/DoD/命令） | ✅ 2026-10-05 |
 | [HANDOFF-M3.md](HANDOFF-M3.md) | M2→M3 交接快照（进度/待办/既定口径/环境坑/DoD/命令） | ✅ 2026-10-05 |
 | [HANDOFF-M4.md](HANDOFF-M4.md) | M3→M4 交接快照（进度/待办/既定口径/环境坑/DoD/命令） | ✅ 2026-10-05 |
+| [HANDOFF-M5.md](HANDOFF-M5.md) | M4→M5 交接快照（进度/待办/既定口径/环境坑/DoD/命令） | ✅ 2026-10-05 |
 
 ## 决策记录
 
@@ -31,7 +32,8 @@
 > 2026-10-05 起新增决策（包名 `bidchecker`、py3.8 底线、输入格式 v1、LLM 接入、依赖分层、
 > LICENSE、CI、EOL、提交邮箱改写、是否参赛【缓议待拍板】、品牌隔离执行、M1 数据口径细化）→
 > [06-决策记录.md](06-决策记录.md) D5–D17；M2 解析对账口径 → 同文件 D18；M3 引擎接口/知识库落库/
-> run 退出码/▲偏离方向语义 → 同文件 D19–D22。
+> run 退出码/▲偏离方向语义 → 同文件 D19–D22；M4 围标检出/e2e 对账口径/LLM 兜底纪律/
+> 招标投标法 33·34 条补核 → 同文件 D23–D26。
 
 ## 里程碑
 
@@ -41,6 +43,6 @@
 - M1 数据先行（2026-10-05 ✅）：`bidchecker datagen` 生成器交付——招标 6 章/投标 7 章固定体例 + D1–D12 缺陷注入（互斥表）+ ground_truth.json（主期望+also_expect）+ 自研确定性随机源；seed=42 产出 3 个演示项目（货物×2、服务×1，含干净对照）入 examples/（fixtures 字节冻结 + CR 守门）；99 项测试全绿 + HANDOFF-M2
 - M2 解析层（2026-10-05 ✅）：`parse_tender`/`parse_bid` 双侧解析器交付——LineDoc 行对齐 + 章节树五步流水线（预处理→章节切分→槽位抽取→合法性校验→证据绑定）；`bidchecker bench parse` 多 seed 全量对账 F1=1.0（65 文档 4185 字段）；D1–D12 注入值原样抽出（一致性判定留给 M3 引擎）；陷阱用例（CRLF/零宽字符/全角空格/中文路径）；156 项测试全绿 + HANDOFF-M3
 - M3 知识与规则（2026-10-05 ✅）：法规三层知识库落库（87号令 8 条 + 实施条例 6 条官方原文逐字核验已核对、招标投标法 2 条待核对显式落库、rules.json 20 条 CheckRule）+ 符合性引擎交付（run_checks 投标侧六类 + run_tender_checks 招标侧，D1–D10/D12 确定性检出，多 seed 四元组对账全过、干净对照误报 0、basis 依据关联率 100%、only_if 门控对全部 check_type 生效）+ `bidchecker run` 端到端（3 演示项目 findings 与 ground_truth 全集合一致，退出码 0/1/2 定稿锁定）；pytest 184 项全绿 + HANDOFF-M4
-- M4 LLM 兜底 + 内置基准：bench e2e（检出率 ≥0.95、误报 0，含 D11 围标对全集合）+ LLM 兜底通路；解析 F1 ≥0.95
+- M4 LLM 兜底 + 内置基准（2026-10-05 ✅）：collusion 围标对按对检出（双信号交叉验证：同分钟编制时间戳+ 对照独有共享长句；CHK-CL-01 注册、依据挂实施条例 39/40 条 + 87号令 36/37 条）+ bench e2e 转正（多 seed × 3 项目全链，对账 ground_truth 全集合含 D11：检出率 1.0 / 误报 0 / 判定准确率 1.0，分缺陷类型报告）+ LLM 兜底通路（client.chat 标准库传输 + 宁缺槽位兜底：quote⊂原文硬校验、数值合法性校验、不覆盖确定性抽取、不可达降级纯规则通路、不改 status）+ 知识库检索 knowledge/search.py（TF 余弦 top_k，不引向量库）；指标写入 README；pytest 223 项全绿 + HANDOFF-M5
 - M5 编排与交付：CLI + docx 评审报告 + 围标图谱 HTML + Web 面板（0 外链）
 - M6 脱敏发布 GitHub + 收尾固化（tag/release/topics）

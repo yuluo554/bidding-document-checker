@@ -49,11 +49,5 @@ def test_cli_bench_parse_threshold_fail_exit_1(capsys):
     assert "FAIL" in capsys.readouterr().out
 
 
-def test_cli_bench_e2e_not_implemented(capsys):
-    assert main(["bench", "e2e"]) == 2
-    assert "尚未实现" in capsys.readouterr().err
-
-
-def test_cli_bench_bare_exits_2(capsys):
-    assert main(["bench"]) == 2
-    assert "尚未实现" in capsys.readouterr().err
+# bench e2e 转正后的 CLI 锁定移至 tests/test_cli.py（裸 bench 用法提示 / e2e 退出码 0·1），
+# e2e 基准本体见 tests/test_bench_e2e.py。

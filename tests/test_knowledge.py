@@ -48,12 +48,18 @@ def test_rules_json_well_formed():
     assert len(ids) == len(set(ids)), "check_id 重复"
     assert set(ids) == set(CHECK_IDS)
     for r in rules:
-        assert r["rule_type"] in RULE_TYPES
+        # collusion（CHK-CL-01）由 M4 collusion 模块产出，不在引擎 RULE_TYPES 分派表内
+        assert r["rule_type"] in RULE_TYPES or r["rule_type"] == "collusion"
         assert r["severity"] in ("high", "mid", "low")
         assert isinstance(r.get("only_if", {}), dict)
         assert r["name"] and r["advice"] and r["basis"]
     price = next(r for r in rules if r["id"] == "CHK-PC-01")
     assert price["params"]["ratio"] == 0.8
+    # M4 围标提示规则：依据全部为官方逐字核验条文（实施条例 39/40 + 87号令 36/37）
+    cl = next(r for r in rules if r["id"] == "CHK-CL-01")
+    blocks = load_blocks(KB)
+    for entry in cl["basis"]:
+        assert basis_resolves(entry, blocks, None), f"CHK-CL-01 依据无法解析: {entry}"
 
 
 def test_raw_files_ledger_sha256_matches():

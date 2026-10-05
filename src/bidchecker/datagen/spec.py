@@ -138,4 +138,7 @@ class ProjectBundle:
         return f"bids/{self.bids[index].bidder}.md"
 
     def pair_target(self, i: int, j: int) -> str:
-        return f"bids/{self.bids[i].bidder}.md|bids/{self.bids[j].bidder}.md"
+        """围标对 target。两端按投标人名排序规范化——pipeline 的文件序是排序序，
+        真值与实际对账的四元组 target 必须与抽取序（rng.sample 序）无关。"""
+        a, b = sorted((self.bids[i].bidder, self.bids[j].bidder))
+        return f"bids/{a}.md|bids/{b}.md"

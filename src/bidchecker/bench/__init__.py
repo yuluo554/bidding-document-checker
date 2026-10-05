@@ -7,19 +7,29 @@ bench parse（M2）：生成器项目 → 双侧文档 + 字段级真值 → 逐
 - **对账字段集 = 体例渲染进文档的字段**（FIELD_SCOPE，即"文档可携带"口径）：
   文档没有落点的字段不参与扣分（如投标侧 project.agency、证明材料证书编号——后者
   真值在 extras 不入卡）；schema 无证据槽位的字段只对值不对证据；
-- 列表行按业务键对齐：资格/星号/否决按 item_id（投标侧资格按体例 Q 序）、分项按名称、
-  人员按证书编号、业绩按名称；
+- 列表行按业务键对齐：资格/星号/否决按 item_id（投标侧资格按体例 Q 序）、
+  分项按名称、人员按证书编号、业绩按名称；
 - Evidence 另按"quote ⊂ 原文"硬校验（不计入 F1，但违例即该文档判 0 并在报告中列出）；
 - 门槛：总体 F1 ≥ 0.95（不放宽），--threshold 可上调用于守门演示。
 
-bench e2e（检出率/误报率/判定准确率）按 plan/05 排期 M4 交付。
+bench e2e（M4）：生成器配对集（多 seed × 3 演示项目，含干净对照）→ pipeline 全链
+（落盘目录 → run_pipeline，**固定禁用 LLM 兜底**，零 API 依赖）→ findings。
+- 对账口径 = datagen 真值契约全集合：expect_findings + also_expect **含 D11（collusion）**
+  的四元组 (rule_type, status, risk_level, target) vs findings 非符合四元组集合；
+- 指标（plan/04 §七）：检出率（分缺陷类型：该缺陷全部期望四元组被覆盖才算检出）/
+  误报数（干净对照 + 非目标文档的全集合差集）/ 判定准确率（四元组微平均 tp/(tp+fp+fn)）；
+- 门槛：检出率 ≥ 0.95、误报 0、判定准确率 ≥ 0.95；固定 seed 可重复。
 """
 from __future__ import annotations
 
+import json
+import tempfile
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from bidchecker.datagen import DEMO_PROJECTS, build_project
+from bidchecker.datagen.generator import generate_project_package
 from bidchecker.datagen.templates import render_bid, render_tender
 from bidchecker.parsers.bid import parse_bid
 from bidchecker.parsers.tender import parse_tender
@@ -27,6 +37,8 @@ from bidchecker.schema import BidCard, TenderCard
 
 DEFAULT_SEEDS: Tuple[int, ...] = (1, 7, 42, 123, 2026)
 F1_THRESHOLD = 0.95
+E2E_DETECTION_THRESHOLD = 0.95
+E2E_ACCURACY_THRESHOLD = 0.95
 
 _MISSING = object()  # 区分"真值有解析缺"与"值为 None"
 
@@ -280,8 +292,157 @@ def run_bench_parse(seeds: Sequence[int] = DEFAULT_SEEDS,
     return report, format_report(report, verbose=verbose)
 
 
+# ================================================================ bench e2e（M4）
+
+TruthTuple = Tuple[str, str, Optional[str], str]
+
+
+def _load_truth_tuples(gt: Dict) -> Tuple[Set[TruthTuple], Dict[str, Set[TruthTuple]]]:
+    """ground_truth.json → （全集合四元组, {defect_id: 该缺陷期望四元组集}）。
+
+    全集合 = expect_findings + also_expect（**含 D11 collusion**，M4 恢复口径）。
+    """
+    all_tuples: Set[TruthTuple] = set()
+    by_defect: Dict[str, Set[TruthTuple]] = {}
+    for row in gt["expect_findings"] + gt["also_expect"]:
+        t = (row["rule_type"], row["status"], row["risk_level"], row["target"])
+        all_tuples.add(t)
+        by_defect.setdefault(row["defect_id"], set()).add(t)
+    return all_tuples, by_defect
+
+
+@dataclass
+class E2EProjectResult:
+    """单项目 e2e 对账：全集合四元组比对 + 缺陷级检出。"""
+
+    seed: int
+    project_key: str
+    clean: bool
+    n_findings: int
+    expected: Set[TruthTuple]
+    actual: Set[TruthTuple]
+    defect_hit: Dict[str, bool] = field(default_factory=dict)
+
+    @property
+    def missed(self) -> Set[TruthTuple]:
+        return self.expected - self.actual
+
+    @property
+    def false_positives(self) -> Set[TruthTuple]:
+        return self.actual - self.expected
+
+    @property
+    def full_set_equal(self) -> bool:
+        return self.expected == self.actual
+
+
+@dataclass
+class E2EBenchReport:
+    """bench e2e 汇总：缺陷级检出率 + 误报数 + 判定准确率 + 门槛判定。"""
+
+    seeds: Tuple[int, ...]
+    projects: List[E2EProjectResult] = field(default_factory=list)
+    detection_by_defect: Dict[str, Tuple[int, int]] = field(default_factory=dict)
+    threshold: float = E2E_DETECTION_THRESHOLD
+
+    @property
+    def detection_rate(self) -> float:
+        hit = sum(h for h, _ in self.detection_by_defect.values())
+        total = sum(t for _, t in self.detection_by_defect.values())
+        return hit / total if total else 1.0
+
+    @property
+    def false_positives(self) -> int:
+        return sum(len(p.false_positives) for p in self.projects)
+
+    @property
+    def accuracy(self) -> float:
+        tp = sum(len(p.expected & p.actual) for p in self.projects)
+        fp = sum(len(p.false_positives) for p in self.projects)
+        fn = sum(len(p.missed) for p in self.projects)
+        return tp / (tp + fp + fn) if tp + fp + fn else 1.0
+
+    @property
+    def passed(self) -> bool:
+        return (self.detection_rate >= self.threshold
+                and self.false_positives == 0
+                and self.accuracy >= E2E_ACCURACY_THRESHOLD)
+
+
+def run_e2e_bench(seeds: Optional[Sequence[int]] = None) -> E2EBenchReport:
+    """多 seed × 3 演示项目全链基准：生成落盘 → run_pipeline → 全集合对账。
+
+    LLM 兜底固定禁用（llm_fallback=False）——基准零 API 依赖、纯规则通路可重复；
+    真值从落盘 ground_truth.json 读回（不经内存传递，对账口径与 datagen 契约同源）。
+    """
+    seeds = DEFAULT_SEEDS if seeds is None else tuple(seeds)
+    report = E2EBenchReport(seeds=tuple(seeds))
+    defect_stat: Dict[str, List[int]] = {}
+    with tempfile.TemporaryDirectory(prefix="bidchecker-e2e-") as td:
+        root = Path(td)
+        for seed in seeds:
+            for spec in DEMO_PROJECTS:
+                proj_dir = generate_project_package(root / f"seed{seed}", seed, spec)
+                result = run_pipeline_quiet(proj_dir)
+                gt = json.loads((proj_dir / "ground_truth.json").read_text(encoding="utf-8"))
+                expected, by_defect = _load_truth_tuples(gt)
+                actual = {(d["rule_type"], d["status"], d["risk_level"], d["target"])
+                          for d in result.finding_dicts()}
+                hit = {did: tuples <= actual for did, tuples in by_defect.items()}
+                for did, ok in hit.items():
+                    stat = defect_stat.setdefault(did, [0, 0])
+                    stat[0 if ok else 1] += 1  # [0]=检出 [1]=漏检
+                report.projects.append(E2EProjectResult(
+                    seed=seed, project_key=spec.key, clean=spec.clean,
+                    n_findings=len(actual), expected=expected, actual=actual,
+                    defect_hit=hit))
+    report.detection_by_defect = {d: (v[0], v[0] + v[1])
+                                  for d, v in sorted(defect_stat.items())}
+    return report
+
+
+def run_pipeline_quiet(project_dir):
+    """e2e 基准专用 pipeline 入口：强制纯规则通路（禁用 LLM 兜底）。"""
+    from bidchecker.pipeline import run_pipeline
+    return run_pipeline(project_dir, llm_fallback=False)
+
+
+def format_e2e_report(report: E2EBenchReport) -> str:
+    """bench e2e 人类可读报告（CLI 输出）：总体指标 + 分缺陷检出 + 项目对账明细。"""
+    lines = [
+        f"bench e2e（端到端校核基准）  seeds={','.join(str(s) for s in report.seeds)}  "
+        f"项目数={len(report.projects)}",
+        f"总体  检出率={report.detection_rate:.4f} [门槛 >= {report.threshold:.2f}]  "
+        f"误报={report.false_positives}  判定准确率={report.accuracy:.4f}",
+        "分缺陷类型检出（含隐含结论，全部期望四元组被覆盖才算检出）：",
+    ]
+    for did in sorted(report.detection_by_defect):
+        hit, total = report.detection_by_defect[did]
+        lines.append(f"  {did:<4} {hit}/{total}  {hit / total:.0%}")
+    bad = [p for p in report.projects if not p.full_set_equal]
+    lines.append("项目对账：全部项目与 ground_truth 全集合一致（含 D11）"
+                 if not bad else f"项目对账：{len(bad)} 个项目不一致：")
+    for p in bad:
+        lines.append(f"  seed{p.seed}/{p.project_key}（clean={p.clean}）")
+        for t in sorted(p.missed):
+            lines.append(f"    漏报 {t}")
+        for t in sorted(p.false_positives):
+            lines.append(f"    误报 {t}")
+    verdict = "PASS" if report.passed else "FAIL"
+    lines.append(f"结论：{verdict}")
+    return "\n".join(lines)
+
+
+def run_bench_e2e(seeds: Optional[Sequence[int]] = None) -> Tuple[E2EBenchReport, str]:
+    """bench e2e 入口（CLI 与测试共用）：返回（报告, 可打印文本）。"""
+    report = run_e2e_bench(seeds=seeds)
+    return report, format_e2e_report(report)
+
+
 __all__ = [
-    "DEFAULT_SEEDS", "F1_THRESHOLD", "DocResult", "ParseBenchReport",
+    "DEFAULT_SEEDS", "F1_THRESHOLD", "E2E_DETECTION_THRESHOLD", "E2E_ACCURACY_THRESHOLD",
+    "DocResult", "ParseBenchReport", "E2EProjectResult", "E2EBenchReport",
     "flatten_tender", "flatten_bid", "compare_fields", "collect_evidence_violations",
     "run_parse_bench", "run_bench_parse", "format_report",
+    "run_e2e_bench", "run_bench_e2e", "format_e2e_report",
 ]

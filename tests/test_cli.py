@@ -1,4 +1,5 @@
-"""CLI：--version / 无参帮助 / 未交付命令退出码 2 / datagen（M1）/ run 退出码 0·1·2（M3 定稿）。"""
+"""CLI：--version / 无参帮助 / 未交付命令退出码 2 / datagen（M1）/ run 退出码 0·1·2（M3）
+/ bench e2e 转正退出码 0·1（M4）。"""
 import json
 
 import pytest
@@ -57,10 +58,30 @@ def test_run_degraded_exit_1(tmp_path, monkeypatch, capsys):
     assert "解析失败 1 份" in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("cmd", [["bench"], ["report"], ["serve"]])
+@pytest.mark.parametrize("cmd", [["report"], ["serve"]])
 def test_future_commands_exit_2(cmd, capsys):
     assert main(cmd) == 2
     assert "尚未实现" in capsys.readouterr().err
+
+
+def test_bare_bench_shows_usage_exit_2(capsys):
+    """bench 子命令已转正（parse/e2e），裸 bench 打印用法提示退出码 2。"""
+    assert main(["bench"]) == 2
+    assert "用法" in capsys.readouterr().err
+
+
+def test_bench_e2e_pass_exit_0(capsys):
+    """bench e2e 转正（M4）：默认 seeds 全链基准，检出率/误报/判定准确率达标退出码 0。"""
+    assert main(["bench", "e2e"]) == 0
+    out = capsys.readouterr().out
+    assert "检出率" in out and "误报=0" in out and "结论：PASS" in out
+
+
+def test_bench_e2e_custom_seeds(capsys):
+    assert main(["bench", "e2e", "--seed", "7", "--seed", "123"]) == 0
+    out = capsys.readouterr().out
+    assert "seeds=7,123" in out
+    assert "D11" in out  # 围标对检出纳入分缺陷类型报告
 
 
 def test_datagen_creates_projects(tmp_path, capsys):

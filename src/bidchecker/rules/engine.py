@@ -11,7 +11,9 @@
   数值与布尔类判定只由本引擎产生（解析器注入值原样抽出，不做一致性判定）；
 - 依据关联率 100%（tests/test_engine 对账）：Finding.basis 仅两类取值——法规引用
   "《法规名》第X条"（逐字命中 data/knowledge/blocks.jsonl 条文块）或 TenderCard 条款
-  id（Q*/S*/R*）；check_id 必须在 rules.json 注册；
+  id（Q*/S*/R*）；check_id 必须在 rules.json 注册（21 个 CHK-*，含 M4 围标提示
+  CHK-CL-01——该条由 collusion 模块产出，rule_type=collusion 不在本引擎
+  RULE_TYPES 分派表内，见 HANDOFF-M4）；
 - 查不到的确定性输入一律跳过不硬判（宁缺勿错，留待 M4 LLM 兜底或人工）。
 
 rules.json 里本引擎引用的阈值参数（params）：CHK-PC-01.ratio = 低于成本嫌疑比例（0.8）。
@@ -72,6 +74,7 @@ CHK_RJ_BOND = "CHK-RJ-02"         # 未按要求提交保证金 → 否决联动
 CHK_RJ_VALIDITY = "CHK-RJ-03"     # 投标有效期不足 → 否决联动（R3）
 CHK_RJ_STAR = "CHK-RJ-04"         # ★条款不满足/未响应 → 否决联动（R4）
 CHK_PC_LOW = "CHK-PC-01"          # 低于成本嫌疑提示（报价 < ratio × 最高限价）
+CHK_CL_PAIRS = "CHK-CL-01"        # 围标文本特征提示（collusion 模块产出，非本引擎分派）
 
 CHECK_IDS = (
     CHK_Q_MISSING, CHK_Q_EXPIRED, CHK_Q_LEVEL, CHK_Q_PERF, CHK_Q_PERSONNEL,
@@ -80,7 +83,7 @@ CHECK_IDS = (
     CHK_BD_AMOUNT, CHK_BD_FORM,
     CHK_DT_VALIDITY, CHK_DT_ORDER,
     CHK_RJ_CAP, CHK_RJ_BOND, CHK_RJ_VALIDITY, CHK_RJ_STAR,
-    CHK_PC_LOW,
+    CHK_PC_LOW, CHK_CL_PAIRS,
 )
 
 # 信用等级有序量表（可比较时按序比较；表外等级退化为等值比较）

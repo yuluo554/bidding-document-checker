@@ -1,14 +1,17 @@
-"""端到端流水线编排（状态机：节点/耗时/失败清单，plan/04 §六）。M3 交付解析与校核段。
+"""端到端流水线编排（状态机：节点/耗时/失败清单，plan/04 §六）。M3 解析与校核段 + M4 collusion/LLM 兜底。
 
 节点顺序：load → parse_tender → parse_bids → checks → collusion(可选) → aggregate → report(可选)。
 单节点失败落失败清单（PipelineResult.failed），不中断其余节点（可解释的降级）：
 - 项目缺 tender.md → FileNotFoundError（CLI 退出码 2，输入不可用）；
 - 单份文档解析失败 → 记入 failed，其余文档继续；
-- collusion 节点 M4 交付（围标对按对出 待人工确认 结论）、report 节点 M5 交付，
-  M3 记为跳过节点并标注交付里程碑。
+- collusion 节点（M4）：按对文本特征检出，target=围标对 "bids/A.md|bids/B.md"，
+  仅 待人工确认 辅助提示（不出定性结论）；report 节点 M5 交付，记跳过节点；
+- LLM 解析兜底（M4，默认关闭）：仅当 llm_fallback 启用且 env 配置齐备时，
+  对解析后仍为 None 的"宁缺"槽位做 LLM 抽取（quote ⊂ 原文硬校验 + 数值合法性校验）；
+  未启用/不可达 → 整链退化为纯规则通路（bench 基准固定禁用，零 API 依赖）。
 
 target 归因：tender 侧结论 → tender.md；投标侧结论 → bids/<投标人>.md；
-围标对 → "bids/A.md|bids/B.md"（M4）。findings JSON 含 check_id/rule_type/status/
+围标对 → "bids/A.md|bids/B.md"。findings JSON 含 check_id/rule_type/status/
 risk_level/message/basis/evidence/target，无时间戳（落盘内容确定）。
 """
 
@@ -18,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from bidchecker.collusion import PairFinding, detect_collusion
 from bidchecker.knowledge import load_rules
 from bidchecker.parsers.bid import parse_bid
 from bidchecker.parsers.tender import parse_tender
@@ -27,7 +31,7 @@ from bidchecker.schema import BidCard, Finding, TenderCard
 STAGES = ("load", "parse_tender", "parse_bids", "checks", "collusion", "aggregate", "report")
 
 TENDER_FILE = "tender.md"
-_SKIP_DETAIL = {"collusion": "M4 交付", "report": "M5 交付"}
+_SKIP_DETAIL = {"report": "M5 交付"}
 
 
 @dataclass
@@ -52,12 +56,13 @@ class BidResult:
 
 @dataclass
 class PipelineResult:
-    """项目目录 → 解析/校核产物 + 节点记录（M3；collusion/report 随 M4/M5 补齐）。"""
+    """项目目录 → 解析/校核产物 + 节点记录（M3；collusion/LLM 兜底随 M4 补齐）。"""
 
     project_dir: str
     tender_card: Optional[TenderCard]
     tender_findings: List[Finding] = field(default_factory=list)
     bids: List[BidResult] = field(default_factory=list)
+    collusion: List[PairFinding] = field(default_factory=list)
     failed: List[str] = field(default_factory=list)
     stages: List[StageReport] = field(default_factory=list)
 
@@ -72,6 +77,8 @@ class PipelineResult:
         for b in self.bids:
             for f in b.findings:
                 out.append(_finding_dict(f, rule_type_by_id, b.file))
+        for pf in self.collusion:
+            out.append(_finding_dict(pf.finding, rule_type_by_id, pf.target))
         return out
 
     def summary(self) -> Dict[str, Any]:
@@ -81,6 +88,8 @@ class PipelineResult:
         for b in self.bids:
             for f in b.findings:
                 n[f.status] = n.get(f.status, 0) + 1
+        for pf in self.collusion:
+            n[pf.finding.status] = n.get(pf.finding.status, 0) + 1
         return {
             "project_dir": self.project_dir,
             "status_counts": n,
@@ -112,10 +121,16 @@ def _finding_dict(f: Finding, rule_type_by_id: Dict[str, str], target: str) -> D
     return d
 
 
-def run_pipeline(project_dir, out_dir: Optional[str] = None) -> PipelineResult:
-    """项目目录 → findings + 卡片产物（out_dir 给定时落盘 findings.json 与 cards/）。"""
+def run_pipeline(project_dir, out_dir: Optional[str] = None,
+                 *, llm_fallback: Optional[bool] = None) -> PipelineResult:
+    """项目目录 → findings + 卡片产物（out_dir 给定时落盘 findings.json 与 cards/）。
+
+    llm_fallback：None=自动（env 配置齐备即启用，默认关闭）；False=强制禁用
+    （bench 基准固定走纯规则通路，保证零 API 依赖可重复）。
+    """
     root = Path(project_dir)
     result = PipelineResult(project_dir=str(root), tender_card=None)
+    use_llm = _llm_fallback_enabled(llm_fallback)
 
     # ---- load
     t0 = time.perf_counter()
@@ -131,7 +146,7 @@ def run_pipeline(project_dir, out_dir: Optional[str] = None) -> PipelineResult:
         f"tender 1 份、投标 {len(bid_paths)} 份"
         + ("" if (root / "bids").is_dir() else "（缺 bids/ 目录）")))
 
-    # ---- parse_tender
+    # ---- parse_tender（llm_fallback 启用时对"宁缺"槽位做 LLM 兜底）
     t0 = time.perf_counter()
     try:
         result.tender_card = parse_tender(tender_text)
@@ -139,23 +154,43 @@ def run_pipeline(project_dir, out_dir: Optional[str] = None) -> PipelineResult:
     except Exception as exc:  # noqa: BLE001 —— 单节点失败不中断，落失败清单
         ok, detail = False, f"解析失败：{exc}"
         result.failed.append(TENDER_FILE)
+    if ok and use_llm:
+        detail += _llm_fill_detail(lambda: _fill_tender(result.tender_card, tender_text))
     result.stages.append(StageReport("parse_tender", ok, time.perf_counter() - t0, detail))
 
     # ---- parse_bids
     t0 = time.perf_counter()
+    bid_texts: Dict[str, str] = {}
+    llm_applied = llm_dropped = 0
+    llm_unreachable = False
     for path in bid_paths:
         rel = f"bids/{path.name}"
+        text = path.read_text(encoding="utf-8")
         try:
-            card = parse_bid(path.read_text(encoding="utf-8"))
-            result.bids.append(BidResult(file=rel, bidder=card.bidder, card=card))
-        except Exception as exc:  # noqa: BLE001
+            card = parse_bid(text)
+        except Exception:  # noqa: BLE001
             result.failed.append(rel)
             result.bids.append(BidResult(file=rel, bidder=None, card=None))
+            bid_texts[rel] = text
+            continue
+        result.bids.append(BidResult(file=rel, bidder=card.bidder, card=card))
+        if use_llm:
+            try:
+                report = _fill_bid(card, text)
+                llm_applied += len(report.applied)
+                llm_dropped += len(report.dropped)
+            except Exception:  # noqa: BLE001 —— LLM 不可达不算解析失败
+                llm_unreachable = True
+        bid_texts[rel] = text
     ok_bids = sum(1 for b in result.bids if b.card is not None)
     parse_fail = [b.file for b in result.bids if b.card is None]
-    result.stages.append(StageReport(
-        "parse_bids", not parse_fail, time.perf_counter() - t0,
-        f"成功 {ok_bids}/{len(bid_paths)}" + (f"，失败：{'、'.join(parse_fail)}" if parse_fail else "")))
+    detail = (f"成功 {ok_bids}/{len(bid_paths)}"
+              + (f"，失败：{'、'.join(parse_fail)}" if parse_fail else ""))
+    if use_llm and ok_bids:
+        detail += (f"；LLM兜底不可达，纯规则通路继续" if llm_unreachable and not llm_applied
+                   else f"；LLM兜底 应用{llm_applied}/丢弃{llm_dropped}")
+    result.stages.append(StageReport("parse_bids", not parse_fail,
+                                     time.perf_counter() - t0, detail))
 
     # ---- checks（招标侧 + 逐投标侧；门控文本 = 招标/投标原文）
     t0 = time.perf_counter()
@@ -164,17 +199,29 @@ def run_pipeline(project_dir, out_dir: Optional[str] = None) -> PipelineResult:
         for b in result.bids:
             if b.card is None:
                 continue
-            bid_text = (root / b.file).read_text(encoding="utf-8")
             b.findings = run_checks(result.tender_card, b.card,
-                                    doc_text=tender_text + "\n" + bid_text)
+                                    doc_text=tender_text + "\n" + bid_texts[b.file])
     result.stages.append(StageReport(
         "checks", result.tender_card is not None, time.perf_counter() - t0,
         "招标侧 + 投标侧确定性检查" if result.tender_card is not None else "招标卡缺失，检查跳过"))
 
-    # ---- collusion（M4）/ aggregate / report（M5）
+    # ---- collusion（M4：按对文本特征，仅 待人工确认 辅助提示）
     t0 = time.perf_counter()
-    result.stages.append(StageReport("collusion", True, 0.0,
-                                     "跳过（" + _SKIP_DETAIL["collusion"] + "）"))
+    parsed_texts = {b.file: bid_texts[b.file] for b in result.bids if b.card is not None}
+    if result.tender_card is None:
+        result.stages.append(StageReport("collusion", True, time.perf_counter() - t0,
+                                         "招标卡缺失，跳过"))
+    elif len(parsed_texts) < 2:
+        result.stages.append(StageReport("collusion", True, time.perf_counter() - t0,
+                                         "投标不足 2 份，跳过"))
+    else:
+        result.collusion = detect_collusion(parsed_texts, exclude_text=tender_text)
+        detail = (f"围标特征检出 {len(result.collusion)} 对"
+                  if result.collusion else "按对核查无异常一致文本特征")
+        result.stages.append(StageReport("collusion", True, time.perf_counter() - t0, detail))
+
+    # ---- aggregate / report（M5）
+    t0 = time.perf_counter()
     result.stages.append(StageReport("aggregate", True, time.perf_counter() - t0,
                                      f"结论 {len(result.finding_dicts())} 条"))
     result.stages.append(StageReport("report", True, 0.0,
@@ -183,6 +230,32 @@ def run_pipeline(project_dir, out_dir: Optional[str] = None) -> PipelineResult:
     if out_dir is not None:
         _write_outputs(result, Path(out_dir))
     return result
+
+
+def _llm_fallback_enabled(llm_fallback: Optional[bool]) -> bool:
+    if llm_fallback is False:
+        return False
+    from bidchecker.llm import client
+    return client.is_enabled()
+
+
+def _llm_fill_detail(fill) -> str:
+    """执行一次 LLM 兜底填充并生成阶段明细；任何异常 → 记不可达（纯规则通路继续）。"""
+    try:
+        report = fill()
+    except Exception as exc:  # noqa: BLE001 —— LLM 不可达不中断流水线
+        return f"；LLM兜底不可达（{exc.__class__.__name__}），纯规则通路继续"
+    return f"；LLM兜底 应用{len(report.applied)}/丢弃{len(report.dropped)}"
+
+
+def _fill_tender(card: TenderCard, text: str):
+    from bidchecker.llm.fallback import fill_missing_slots
+    return fill_missing_slots(card, text)
+
+
+def _fill_bid(card: BidCard, text: str):
+    from bidchecker.llm.fallback import fill_missing_slots
+    return fill_missing_slots(card, text)
 
 
 def _write_outputs(result: PipelineResult, out: Path) -> List[str]:

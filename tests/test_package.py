@@ -50,6 +50,16 @@ def test_m3_engine_and_pipeline_delivered():
     assert not result.failed
 
 
+def test_m4_collusion_search_llm_delivered():
+    """M4 转正：围标按对检出 / 知识库检索 / LLM chat 均可运行（不再抛 NotImplementedError）。"""
+    from bidchecker.collusion import detect_collusion
+    from bidchecker.knowledge.search import search
+
+    assert detect_collusion({"bids/甲.md": "编制完成时间：2026-10-14 17:30"}) == []
+    hits = search("投标保证金", top_k=2)
+    assert hits and all("保证金" in b["text"] for _, b in hits)
+
+
 def test_parsers_delivered_m2():
     """M2 转正：双侧解析器可运行，examples 固定体例解析出完整参数卡。"""
     from pathlib import Path

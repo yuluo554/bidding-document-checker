@@ -3,11 +3,12 @@
 命令按里程碑分阶段交付（plan/05-数据计划与里程碑.md）：未交付命令打印指向计划
 文档的提示并返回退出码 2（与参数错误一致），不崩溃。
 
-退出码语义（M3 定稿，锁进 tests/test_cli.py）：
-- datagen / bench parse / --version / 无参帮助：0 成功（bench parse 门槛不过 = 1）；
+退出码语义（M3/M4 定稿，锁进 tests/test_cli.py）：
+- datagen / bench parse / bench e2e / --version / 无参帮助：0 成功
+  （bench parse 门槛不过 / bench e2e 门槛不过 = 1）；
 - run：0 = 全部文档解析并校核完成；1 = 完成但存在解析失败文档（降级）；
   2 = 输入不可用（目录/文件缺失）或未交付命令；
-- bench e2e / report / serve：未交付 = 2（指向 plan/05）。
+- report / serve：未交付 = 2（指向 plan/05）。
 """
 import argparse
 import sys
@@ -40,7 +41,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_bp.add_argument("--threshold", type=float, default=None,
                       help="总体 F1 门槛（默认 0.95，不放宽）")
     p_bp.add_argument("--verbose", action="store_true", help="列出全部字段级失配明细")
-    bench_sub.add_parser("e2e", help="端到端基准：检出率/误报率/判定准确率（M4 交付）")
+    p_be = bench_sub.add_parser("e2e", help="端到端基准：检出率/误报/判定准确率（对账真值全集合）")
+    p_be.add_argument("--seed", type=int, action="append", dest="seeds",
+                      help="回归种子，可重复传入（默认 1,7,42,123,2026）")
     sub.add_parser("report", help="生成 docx 评审报告")
     sub.add_parser("serve", help="启动 Web 面板")
     return parser
@@ -76,10 +79,13 @@ def main(argv=None) -> int:
             print(text)
             return 0 if _report.passed else 1
         if args.bench_command == "e2e":
-            print(f"尚未实现：bench e2e 计划于 M4 交付（见 {_PLAN_URL}）", file=sys.stderr)
-            return 2
-        print(f"用法：bidchecker bench parse|e2e（e2e 尚未实现，见 {_PLAN_URL}）",
-              file=sys.stderr)
+            from bidchecker.bench import run_bench_e2e
+
+            seeds = tuple(args.seeds) if args.seeds else None
+            _report, text = run_bench_e2e(seeds=seeds)
+            print(text)
+            return 0 if _report.passed else 1
+        print("用法：bidchecker bench parse|e2e", file=sys.stderr)
         return 2
     if args.command in ("report", "serve"):
         print(f"尚未实现：该命令按里程碑交付（见 {_PLAN_URL}）", file=sys.stderr)
