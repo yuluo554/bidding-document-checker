@@ -7,8 +7,8 @@
 | 数据 | 类型 | 来源 | 许可 | 状态 |
 |---|---|---|---|---|
 | 合成招标/投标文件 + 真值（生成器固定 seed 产出） | 程序化自制 | src/bidchecker/datagen | 项目原创 | ✅ M1 交付（2026-10-05）：`examples/` 三演示项目（seed=42，货物×2、服务×1，含 D1–D12 缺陷注入与干净对照），由 `bidchecker datagen --seed 42` 位级可复现再生成；fixtures 字节冻结入仓，设计见 plan/05 §一 |
-| 法规条文块 blocks.jsonl + 规则表 rules.json | 公开法规入库 | 官方渠道（见下） | 公开法规文本（条文原文+出处形式） | ✅ M3 交付（2026-10-05）：87号令 8 条 + 实施条例 6 条逐字核验入库（status=已核对）；招标投标法 2 条公开转载转记（status=待核对，引擎不引用）；rules.json 20 条 CheckRule（check_id=CHK-*） |
-| 法规原文 raw/*.txt | 公开法规全文 | 官方页面 curl 直抓（见下台账） | 公开法规文本 | ✅ M3 交付（2026-10-05）：87号令（财政部官网）、实施条例（中国政府网公报）两份 |
+| 法规条文块 blocks.jsonl + 规则表 rules.json | 公开法规入库 | 官方渠道（见下） | 公开法规文本（条文原文+出处形式） | ✅ M3 交付（2026-10-05），M7 补复核元数据（2026-10-21）：87号令 8 条 + 实施条例 6 条逐字核验入库（status=已核对）；招标投标法 2 条公开转载转记（status=待核对，引擎不引用）；共 16 块，每条带 `reviewed_on` / `next_review_due`；rules.json **21 条** CheckRule（check_id=CHK-*，其中引擎内 20 个 + 围标 CHK-CL-01 1 个） |
+| 法规原文 raw/*.txt | 公开法规全文 | 官方页面 curl 直抓（见下台账） | 公开法规文本 | ✅ M3 交付（2026-10-05）：87号令（财政部官网）、实施条例（中国政府网公报）两份；**不进 wheel**（只被源码态台账 sha256 门使用） |
 
 数据计划总纲：[plan/05-数据计划与里程碑.md](../plan/05-数据计划与里程碑.md)。
 
@@ -16,10 +16,26 @@
 
 获取方式：curl 直抓官方页面 HTML → 提取正文为 UTF-8/LF 纯文本；sha256 为提取后 txt 文件指纹。
 
-| 文件 | 来源 URL | 获取日期 | sha256 | status |
-|---|---|---|---|---|
-| `政府采购货物和服务招标投标管理办法_财政部令第87号.txt` | https://www.mof.gov.cn/gp/xxgkml/tfs/201707/t20170718_2652766.htm | 2026-10-05 | `47be0c37664cda6351d258a5ba18bc5f0363f4368ea643565694bab3aff72d2b` | ✅ 已核对 |
-| `招标投标法实施条例_国务院令第613号.txt` | https://www.gov.cn/zwgk/2011-12/29/content_2033184.htm | 2026-10-05 | `c5ec298d89b7a3642a65ef7c2d7c92bd3816244ccc676c1e60c860a804f2eabf` | ✅ 已核对（2011 公布版公报原文；现行版经 676/709 号令两次修订，引用条号以现行文本为准） |
+| 文件 | 来源 URL | 获取日期 | sha256 | status | 下次复核 |
+|---|---|---|---|---|---|
+| `政府采购货物和服务招标投标管理办法_财政部令第87号.txt` | https://www.mof.gov.cn/gp/xxgkml/tfs/201707/t20170718_2652766.htm | 2026-10-05 | `47be0c37664cda6351d258a5ba18bc5f0363f4368ea643565694bab3aff72d2b` | ✅ 已核对 | 2027-10-05 |
+| `招标投标法实施条例_国务院令第613号.txt` | https://www.gov.cn/zwgk/2011-12/29/content_2033184.htm | 2026-10-05 | `c5ec298d89b7a3642a65ef7c2d7c92bd3816244ccc676c1e60c860a804f2eabf` | ✅ 已核对（2011 公布版公报原文；现行版经 676/709 号令两次修订，引用条号以现行文本为准） | 2027-10-05 |
+
+复核口径（M7）：机读字段在 `blocks.jsonl` 每条上，`reviewed_on` = 逐字核验日，
+`next_review_due` = 下次复核期限。已核对条文按 **12 个月**周期（`REVIEW_CYCLE_MONTHS`）；
+招标投标法 33/34 两条 `status=待核对` 的期限是 **2026-11-05**（一个月内补核，逾期有门会红）。
+本表「下次复核」列为人工可读副本，机器判据以 `blocks.jsonl` 为准；
+`tests/test_knowledge.py::test_blocks_carry_review_metadata` 守着字段齐全与先后顺序。
+
+## 政策数值（本仓唯一一处）
+
+`rules.json` 的 `CHK-PC-01.params.ratio = 0.8`（报价低于最高限价 80% 时提示复核）
+是本仓**唯一**的政策数值。按 M7 决策（DEC4=A）它保持为**规则数据**而不抽成代码常量
+（让 `rules.json` 保持自足、声明式规则表可整表替换）。
+
+**改动纪律**：改这个值必须同时改两处——`data/knowledge/rules.json` 的
+`CHK-PC-01.params.ratio`，与 `tests/test_knowledge.py::test_rules_json_well_formed`
+中对该值的断言（`assert price["params"]["ratio"] == 0.8`）。只改一处会让门红。
 
 ## 法规依据查证记录（题目阶段 2026-10-04，M3 更新 2026-10-05）
 

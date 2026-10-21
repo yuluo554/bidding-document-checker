@@ -6,6 +6,10 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# 构建产物（M7：python -m build 会写 build/ 与 dist/）
+build/
+dist/
+
 # 环境与密钥
 .env
 *.key

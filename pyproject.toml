@@ -1,24 +1,23 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bidchecker"
-version = "0.5.0"
+version = "0.6.0"
 description = "招投标文件智能评审与合规校核系统：双侧解析、资格与实质性条款符合性校核、法规依据关联（公共采购）"
 readme = "README.md"
-requires-python = ">=3.8"
-license = { text = "MIT" }
+requires-python = ">=3.12"
+license = "MIT"
 authors = [{ name = "bidding-document-checker contributors" }]
 keywords = ["tender", "bidding", "procurement", "compliance", "conformance-checking"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Legal Industry",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Office/Business :: Legal",
 ]
 dependencies = []
@@ -39,5 +38,17 @@ bidchecker = "bidchecker.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# 装态可用性（M7 / D1）：知识库随 wheel 装到 <prefix>/share/bidchecker/knowledge，
+# 由 knowledge._installed_candidates() 兜底命中。raw/ 法规原文**不进 wheel**
+# （只被源码态的台账 sha256 测试使用，装态由 skipif + 反向锚把关）。
+[tool.setuptools.data-files]
+"share/bidchecker/knowledge" = [
+  "data/knowledge/rules.json",
+  "data/knowledge/blocks.jsonl",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "installed_wheel: 需要构建并安装 wheel 到临时 venv 的装态门（较慢）",
+]

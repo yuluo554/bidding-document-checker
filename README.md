@@ -5,7 +5,7 @@
 招投标文件智能评审与合规校核系统（公共采购）——面向招标/投标文件的双侧自动解析、
 资格与实质性条款符合性校核、法规依据关联与评审报告生成。
 
-> ✅ **状态：v0.5.0 已发布（M6 终版）**——计划文档、合成数据生成器、双侧解析器（F1=1.0）、法规知识库、符合性引擎（`bidchecker run` 出带依据的 findings）、围标对文本特征检出与端到端基准达标、docx 评审报告 / 围标图谱 HTML / Web 面板（断网可演示），功能按里程碑交付（见[路线图](#路线图)）。
+> ✅ **状态：v0.6.0（M7 迭代二）**——pip 装完即可用（知识库随包安装，`rule_type` 不再退化为空串）、缺知识库不再静默、法规条文带机读复核锚（`reviewed_on` / `next_review_due`）、Python 要求 **≥ 3.12**、CI 迁至新 actions。此前 v0.5.0（M6 终版）已交付：计划文档、合成数据生成器、双侧解析器（F1=1.0）、法规知识库、符合性引擎（`bidchecker run` 出带依据的 findings）、围标对文本特征检出与端到端基准达标、docx 评审报告 / 围标图谱 HTML / Web 面板（断网可演示），功能按里程碑交付（见[路线图](#路线图)）。
 
 ## 定位（重要）
 
@@ -35,10 +35,12 @@
 
 ## 快速开始（开发模式）
 
+需要 **Python ≥ 3.12**（v0.6.0 起；本仓不发二进制包，唯一入口是源码/源码包安装）。
+
 ```bash
 py -m venv .venv
 source .venv/Scripts/activate   # Windows Git Bash；Linux/macOS: source .venv/bin/activate
-pip install -U pip              # Python 3.8 自带老 pip 无法可编辑安装 pyproject-only 项目
+pip install -U pip              # 保证 pip 足够新（可编辑安装 pyproject-only 项目）
 pip install -e ".[dev,report,web,llm]"   # report=docx 报告，web=Web 面板；llm 的 httpx 供 fastapi TestClient（pytest 全量）
 pytest -q
 bidchecker --version
@@ -57,6 +59,24 @@ bidchecker report output/findings.json --all
 bidchecker serve --port 8000
 ```
 
+## 安装（pip / wheel，v0.6.0 起可用）
+
+```bash
+pip install bidchecker-0.6.0-py3-none-any.whl   # 从 Release 下载，或 pip install <sdist>
+bidchecker run some-project/ --out out
+```
+
+**知识库随包安装**：`rules.json`（21 条校验规则）与 `blocks.jsonl`（16 条法规条文块）
+通过 `[tool.setuptools.data-files]` 装到 `<prefix>/share/bidchecker/knowledge`，
+`find_knowledge_dir()` 在源码态与装态两条路径上都按"同时存在 rules.json 与 blocks.jsonl"
+判定命中——装完即可产出带 `rule_type` 的 findings，无需手工指路径。
+
+`data/knowledge/raw/` 的法规原文**不进 wheel**（只用于源码态的台账 sha256 溯源门）。
+
+**缺知识库时的行为**：引擎仍可运行（`plan/06` D20 口径），但 `run` 会向 stderr 打一行
+`警告：知识库不可用，findings 的 rule_type 将为空（法规依据仍保留）…`，退出码语义不变
+（0/1/2 同 `run` 行说明）。
+
 ## CLI
 
 | 命令 | 说明 | 状态 |
@@ -67,7 +87,7 @@ bidchecker serve --port 8000
 | `bidchecker bench parse [--seed N] [--threshold X]` | 解析基准：字段级 P/R/F1（默认 seeds 1/7/42/123/2026，门槛 F1 ≥ 0.95） | ✅ |
 | `bidchecker bench e2e [--seed N]` | 端到端基准：检出率（分缺陷类型）/误报数/判定准确率，对账真值全集合含 D11（退出码 0/1） | ✅ |
 | `bidchecker report <findings.json> [--out F] [--project D] [--all]` | docx 评审报告：结论汇总 + 分级明细 + 依据/证据锚点 + 符合性矩阵（退出码 0/2；需 `report` extra） | ✅ |
-| `bidchecker serve [--host H] [--port P]` | Web 面板：上传评审 / 内置演示一键加载，0 外链断网可演示（需 `web` extra） | ✅ |
+| `bidchecker serve [--host H] [--port P]` | Web 面板：上传评审 / 内置演示一键加载，0 外链断网可演示（退出码 0/2；需 `web` extra） | ✅ |
 
 ## 架构
 
@@ -94,6 +114,7 @@ flowchart LR
 | M4 | LLM 兜底 + 端到端基准达标 | ✅ 2026-10-05 |
 | M5 | CLI 全家桶 + docx 报告 + 围标图谱 + Web | ✅ 2026-10-05 |
 | M6 | 脱敏发布 GitHub + 收尾固化 | ✅ 2026-10-05 |
+| M7 | 迭代二：pip 装完可用（知识库进 wheel）+ 缺知识库不静默 + 条文复核锚 + 自述对齐 + CI 换新 | ✅ 2026-10-21 |
 
 详见 [plan/05-数据计划与里程碑.md](plan/05-数据计划与里程碑.md)。
 
