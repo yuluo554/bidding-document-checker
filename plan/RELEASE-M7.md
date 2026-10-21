@@ -78,9 +78,62 @@
 
 ## 二、tag 后事实（发布执行记录）
 
-> 本节的数字在发布动作完成后追加，**不含** `git rev-list -n1 v0.6.0` 自身摘要的循环引用。
+### 2.1 tag 与合并
 
-（待发布执行后填充：tag 对象类型与指向、Release 附件名 + 字节数 + sha256、CI run id 与 job 结论、注解条数。）
+| 项 | 值 |
+|---|---|
+| 分支 | `iter/m7-v0.6.0`（提交 `5cd571400a3a61e4bb73a3a78884e738e940670c`） |
+| PR | #1 → `--merge` 进 main（**不用 squash**，为让 CI 验过的那个提交留在 main 祖先链） |
+| main HEAD | `761cd74b3d5ea70a6472dceda4d474d30d2619be`（merge commit） |
+| tag `v0.6.0` | **annotated**，`git rev-list -n1 v0.6.0` == `761cd74b3d5ea70a6472dceda4d474d30d2619be`（**零滞后**） |
+| `v0.5.0` | 未动（tag 与 Release 均保持原状） |
+
+### 2.2 CI（迁移后 runner 实测）
+
+| run | 事件 | headSha | 结论 |
+|---|---|---|---|
+| `39617092134` | `pull_request`（PR #1） | `5cd5714…` | ✅ success（`test (ubuntu-latest, 3.12)` + `test (windows-latest, 3.12)` 全 success） |
+| `39618073723` | `push`（main） | `761cd74…` | ✅ success（同上两 job） |
+
+**注解**：两 run 合计仅 **1 条**，内容为
+`The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026 …`（环境迁移通知）。
+**Node20 弃用注解 0 条**（v0.5.0 的 4 条随 actions v7 消失）。
+
+### 2.3 Release 附件（三方对撞）
+
+| 文件 | 字节 | sha256（本地 dist / GitHub digest / 匿名 curl 真下载 三者相同） |
+|---|---|---|
+| `bidchecker-0.6.0-py3-none-any.whl` | 118,064 | `cc0b07161005c8fd079ea876409185a70e49d4803950a16d434d1554d9ab5e79` |
+| `bidchecker-0.6.0.tar.gz` | 142,305 | `303361049b6204550c3d1fa3baaec67986b33fde24c0d1d4545202ca6c76a11b` |
+| `SHA256SUMS` | 190 | （清单自身） |
+
+Release URL：<https://github.com/yuluo554/bidding-document-checker/releases/tag/v0.6.0>
+`isDraft=false`、`isPrerelease=false`、`releases/latest` → `v0.6.0`。
+
+### 2.4 发布物复验（真下载 → 真装 → 中立目录跑）
+
+| 渠道 | 结果 |
+|---|---|
+| 下载的 **wheel** 装进全新 venv，中立目录 `run examples/demo-goods-1` | rc=0，结论 8 条，`rule_type` 6 个非空值，stderr 无警告，`bidchecker.__version__ == 0.6.0` |
+| 下载的 **sdist** 装进另一全新 venv，同一命令 | rc=0，`rule_type` 6 个非空值 |
+| **tag 树**（`git clone --branch v0.6.0`）在全新 venv 跑它自带的测试 | **273 passed**，rc=0 |
+
+### 2.5 本轮新增坑（记录备查）
+
+1. **PEP 639 与 license classifier 不可共存**：`license = "MIT"`（SPDX 表达式）一旦启用，
+   `setuptools>=77` 会对 `License :: OSI Approved :: MIT License` 直接抛
+   `InvalidConfigError: License classifiers have been superseded by license expressions` ——
+   构建当场失败，不是警告。改 SPDX 必须同时删 classifier。
+2. **分支 push 不触发 CI**：`ci.yml` 的 `on.push.branches: [main]` 只认 main，
+   推 `iter/*` 分支必须走 PR 才会有 run。
+3. **真装门的期望值不能写死 rule_type 字符串**：`rules.json` 有 8 个 rule_type，
+   而 `demo-goods-1` 只触发其中 6 个（`bond_check` / `price_check` 在该项目不适用）。
+   正确口径是「装态 findings == 源码态 findings 逐字段相同」，期望值现算。
+4. **`write_text` 写 fixtures 会引入 CRLF**：NC5 的变异第一版用 `read_text/write_text`，
+   触发了两条红（`test_examples_fixture_frozen` + `test_no_cr_in_committed_examples`），
+   第二条是噪声。改 fixtures 一律 `write_bytes(x.encode("utf-8"))`。
+5. **`gh release view --json isLatest` 不存在**：要判 Latest 得查
+   `gh api repos/<owner>/<repo>/releases/latest --jq '.tag_name'`。
 
 ---
 
