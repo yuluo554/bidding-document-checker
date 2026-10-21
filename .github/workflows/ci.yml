@@ -11,11 +11,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.8", "3.12"]
+        python-version: ["3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
@@ -23,6 +23,8 @@ jobs:
           python -m pip install -U pip
           python -m pip install -e .[dev,report,web,llm]
       - name: Test
-        run: python -m pytest -q
+        run: python -m pytest -q -m "not installed_wheel"
+      - name: Installed wheel gate
+        run: python -m pytest -q -m installed_wheel
       - name: CLI smoke
         run: python -m bidchecker --version

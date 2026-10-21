@@ -16,6 +16,7 @@ risk_level/message/basis/evidence/target，无时间戳（落盘内容确定）�
 """
 
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -69,9 +70,16 @@ class PipelineResult:
 
     # ---------------------------------------------------------------- 序列化
     def finding_dicts(self) -> List[Dict[str, Any]]:
-        """全部结论 → 序列化 dict 列表（附加 rule_type 与 target，顺序确定）。"""
+        """全部结论 → 序列化 dict 列表（附加 rule_type 与 target，顺序确定）。
+
+        缺知识库时规则映射为空，rule_type 会退化为空串——此时必须告警而非静默
+        （DEC3=A：仍可运行 + stderr 一行，退出码语义不变）。
+        """
+        rules = load_rules()
         rule_type_by_id = {r.get("id"): r.get("rule_type", "")
-                           for r in load_rules() if isinstance(r, dict) and r.get("id")}
+                           for r in rules if isinstance(r, dict) and r.get("id")}
+        if not rule_type_by_id:
+            _warn_missing_knowledge()
         out: List[Dict[str, Any]] = []
         for f in self.tender_findings:
             out.append(_finding_dict(f, rule_type_by_id, TENDER_FILE))
@@ -120,6 +128,30 @@ def _finding_dict(f: Finding, rule_type_by_id: Dict[str, str], target: str) -> D
     d["rule_type"] = rule_type_by_id.get(f.check_id, "")
     d["target"] = target
     return d
+
+
+_WARNED_KB_MISSING = False
+
+
+def reset_knowledge_warning() -> None:
+    """清空"已告警"标记（测试用；进程内只告警一次，避免 summary/serialize 多次刷屏）。"""
+    global _WARNED_KB_MISSING
+    _WARNED_KB_MISSING = False
+
+
+def _warn_missing_knowledge() -> None:
+    """知识库不可用 → stderr 一行（DEC3=A：不改变退出码，但绝不静默）。"""
+    global _WARNED_KB_MISSING
+    if _WARNED_KB_MISSING:
+        return
+    _WARNED_KB_MISSING = True
+    from bidchecker.knowledge import knowledge_status
+
+    status = knowledge_status()
+    reason = status.get("reason") or (
+        f"知识库目录 {status.get('path')} 的 rules.json 解析后为空（无有效 check 规则）")
+    print(f"警告：知识库不可用，findings 的 rule_type 将为空（法规依据仍保留）。{reason}",
+          file=sys.stderr)
 
 
 def run_pipeline(project_dir, out_dir: Optional[str] = None,
